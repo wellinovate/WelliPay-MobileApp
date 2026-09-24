@@ -752,3 +752,630 @@ export const FACILITIES_SEED: HospitalFacility[] = [
     activeBillsCount: 1,
   },
 ];
+
+
+// ==========================================
+// 1. FamilyPay & Diaspora Group Pooling
+// ==========================================
+export interface FamilyContributor {
+  id: string;
+  name: string;
+  relation: string;
+  amountNgn: number;
+  currency: 'NGN' | 'USD' | 'GBP' | 'EUR' | 'CAD';
+  foreignAmount: number;
+  date: string;
+  message?: string;
+}
+
+export interface FamilyPayRequest {
+  id: string;
+  billId: string;
+  patientName: string;
+  hospitalName: string;
+  serviceDescription: string;
+  totalAmountNgn: number;
+  webLinkUrl: string;
+  shortCode: string;
+  currencyRates: {
+    USD: number;
+    GBP: number;
+    EUR: number;
+    CAD: number;
+  };
+  poolTargetNgn: number;
+  poolCollectedNgn: number;
+  contributors: FamilyContributor[];
+  status: 'active' | 'funded' | 'expired';
+}
+
+// ==========================================
+// 2. WelliPass Hospital Discharge Clearance
+// ==========================================
+export interface WelliPassStep {
+  cleared: boolean;
+  officerName: string;
+  timestamp: string;
+  notes?: string;
+}
+
+export interface WelliPassClearance {
+  id: string;
+  billId: string;
+  episodeId?: string;
+  patientName: string;
+  hospitalName: string;
+  ward: string;
+  admissionDate: string;
+  dischargeDate: string;
+  doctorSignOff: WelliPassStep;
+  pharmacyClearance: WelliPassStep & { returnsReconciled: boolean };
+  hmoRemittance: WelliPassStep & { approvedAmount: number };
+  pspReconciled: WelliPassStep & { pspPaid: number; balanceDue: number };
+  overallStatus: 'pending' | 'cleared' | 'discharged';
+  gatePassCode: string;
+  clearedAt?: string;
+  securityGuardVerified?: boolean;
+}
+
+// ==========================================
+// 3. Rx Pharmacy Formulary & Generic Cost-Comparator
+// ==========================================
+export interface RxPrescriptionItem {
+  id: string;
+  brandName: string;
+  brandPrice: number;
+  genericName: string;
+  genericPrice: number;
+  dosage: string;
+  nafdacRegNo: string;
+  formularyTier: 'Tier 1 (100% HMO)' | 'Tier 2 (Co-pay 20%)' | 'Tier 3 (Not Covered)';
+  hmoCoverBrand: number;
+  pspBrand: number;
+  hmoCoverGeneric: number;
+  pspGeneric: number;
+  selectedOption: 'brand' | 'generic';
+}
+
+export interface RxPrescriptionOrder {
+  id: string;
+  billId?: string;
+  doctorName: string;
+  clinicName: string;
+  date: string;
+  items: RxPrescriptionItem[];
+  totalBrandCost: number;
+  totalGenericCost: number;
+  savingsWithGeneric: number;
+  status: 'dispensed' | 'pending_dispense';
+}
+
+// ==========================================
+// 4. Offline USSD Protocol & Low-Bandwidth Mode
+// ==========================================
+export interface UssdBankMapping {
+  bankCode: string;
+  bankName: string;
+  ussdPrefix: string;
+  sampleString: string;
+}
+
+export interface OfflineVoucher {
+  id: string;
+  billId: string;
+  billCode: string;
+  patientName: string;
+  hospitalName: string;
+  amount: number;
+  issuedAt: string;
+  expiresAt: string;
+  voucherToken: string;
+  qrPayload: string;
+  verifiedOffline: boolean;
+}
+
+// ==========================================
+// 5. Provider / Hospital Billing Desk Portal
+// ==========================================
+export interface ProviderQueueItem {
+  id: string;
+  patientName: string;
+  welliRecordId: string;
+  service: string;
+  totalAmount: number;
+  hmoName: string;
+  hmoApproved: number;
+  pspAmount: number;
+  status: 'awaiting_adjudication' | 'awaiting_psp' | 'cleared';
+  createdAt: string;
+}
+
+export interface ProviderBillingDesk {
+  facilityId: string;
+  facilityName: string;
+  operatorName: string;
+  role: string;
+  todaysStats: {
+    totalBilled: number;
+    hmoClaims: number;
+    pspCollected: number;
+    patientsCount: number;
+  };
+  liveQueue: ProviderQueueItem[];
+  generatedBillCodes: {
+    code: string;
+    patientName: string;
+    amount: number;
+    service: string;
+    createdAt: string;
+    claimed: boolean;
+  }[];
+}
+
+// ==========================================
+// 6. HealthSave Smart Ajo / Micro-Savings Engine
+// ==========================================
+export interface HealthSavePotTxn {
+  id: string;
+  date: string;
+  amount: number;
+  type: 'deposit' | 'roundup' | 'interest' | 'withdrawal';
+  note: string;
+}
+
+export interface HealthSavePot {
+  id: string;
+  title: string;
+  category: 'Maternity' | 'Emergency' | 'Surgery' | 'Elderly Care' | 'Dental/Optical';
+  targetAmount: number;
+  currentAmount: number;
+  monthlyContribution: number;
+  interestYieldAnnual: number;
+  roundUpEnabled: boolean;
+  autoDeductDay: number;
+  history: HealthSavePotTxn[];
+}
+
+// ==========================================
+// SEEDS FOR ALL 6 SUITES
+// ==========================================
+
+export const FAMILY_PAY_SEED: FamilyPayRequest[] = [
+  {
+    id: 'fp1',
+    billId: 'b2',
+    patientName: 'Amina Bello',
+    hospitalName: 'Redeemer Specialist Clinic',
+    serviceDescription: 'Laparoscopic Surgery Co-Payment & Ward',
+    totalAmountNgn: 55000,
+    webLinkUrl: 'https://wellipay.ng/pay/BL-9482?sponsor=fam',
+    shortCode: 'WLI-FAM-749',
+    currencyRates: {
+      USD: 1550,
+      GBP: 2000,
+      EUR: 1700,
+      CAD: 1150,
+    },
+    poolTargetNgn: 55000,
+    poolCollectedNgn: 35000,
+    contributors: [
+      {
+        id: 'c1',
+        name: 'Tunde Adeyemi',
+        relation: 'Brother (London, UK)',
+        amountNgn: 30000,
+        currency: 'GBP',
+        foreignAmount: 15,
+        date: 'Today, 11:20 am',
+        message: 'Wishing Amina a super speedy recovery! Love from London.',
+      },
+      {
+        id: 'c2',
+        name: 'Blessing Okafor',
+        relation: 'Cousin (Lagos)',
+        amountNgn: 5000,
+        currency: 'NGN',
+        foreignAmount: 5000,
+        date: 'Today, 12:45 pm',
+        message: 'Contribution towards discharge drugs.',
+      },
+    ],
+    status: 'active',
+  },
+  {
+    id: 'fp2',
+    billId: 'b1',
+    patientName: 'Amina Bello',
+    hospitalName: 'St. Nicholas Hospital',
+    serviceDescription: 'Specialist Investigation & Pathology',
+    totalAmountNgn: 12000,
+    webLinkUrl: 'https://wellipay.ng/pay/BL-4019?sponsor=fam',
+    shortCode: 'WLI-FAM-332',
+    currencyRates: {
+      USD: 1550,
+      GBP: 2000,
+      EUR: 1700,
+      CAD: 1150,
+    },
+    poolTargetNgn: 12000,
+    poolCollectedNgn: 12000,
+    contributors: [
+      {
+        id: 'c3',
+        name: 'Uncle Emeka',
+        relation: 'Uncle (Atlanta, USA)',
+        amountNgn: 12000,
+        currency: 'USD',
+        foreignAmount: 7.74,
+        date: 'Yesterday, 8:10 pm',
+        message: 'Covered in full. Stay strong!',
+      },
+    ],
+    status: 'funded',
+  },
+];
+
+export const WELLIPASS_SEED: WelliPassClearance[] = [
+  {
+    id: 'wp1',
+    billId: 'b2',
+    episodeId: 'ep2',
+    patientName: 'Amina Bello',
+    hospitalName: 'Redeemer Specialist Clinic',
+    ward: 'Surgical Ward 3, Bed 12',
+    admissionDate: '21 Sep 2026',
+    dischargeDate: '24 Sep 2026',
+    doctorSignOff: {
+      cleared: true,
+      officerName: 'Dr. O. Alabi (Consultant Surgeon)',
+      timestamp: 'Today, 9:15 am',
+      notes: 'Surgical recovery uneventful. Wound dressed. Oral antibiotics prescribed for 5 days.',
+    },
+    pharmacyClearance: {
+      cleared: true,
+      officerName: 'Pharm. K. Danladi',
+      timestamp: 'Today, 9:45 am',
+      returnsReconciled: true,
+      notes: 'Take-home medications dispensed. 0 unused ampoules returned.',
+    },
+    hmoRemittance: {
+      cleared: true,
+      officerName: 'HMO Desk Officer S. Eze',
+      timestamp: 'Today, 10:10 am',
+      approvedAmount: 130000,
+      notes: 'Pre-auth code HYG-SURG-7749 validated. Tariff claim ₦130,000 certified.',
+    },
+    pspReconciled: {
+      cleared: true,
+      officerName: 'Cashier R. Bello',
+      timestamp: 'Today, 10:35 am',
+      pspPaid: 55000,
+      balanceDue: 0,
+      notes: 'Patient Self-Pay (PSP) ₦55,000 paid via FamilyPay & HealthSave. Zero balance.',
+    },
+    overallStatus: 'cleared',
+    gatePassCode: 'WP-PASS-LAG-2026-8812',
+    clearedAt: 'Today, 10:35 am',
+    securityGuardVerified: false,
+  },
+  {
+    id: 'wp2',
+    billId: 'b1',
+    patientName: 'Amina Bello',
+    hospitalName: 'St. Nicholas Hospital',
+    ward: 'Day Care Observation Unit',
+    admissionDate: '23 Sep 2026',
+    dischargeDate: '24 Sep 2026',
+    doctorSignOff: {
+      cleared: true,
+      officerName: 'Dr. Chidi Nwosu',
+      timestamp: 'Today, 8:30 am',
+      notes: 'Vital signs normal. Pathology results reviewed.',
+    },
+    pharmacyClearance: {
+      cleared: true,
+      officerName: 'Pharm. Joy Ibrahim',
+      timestamp: 'Today, 9:00 am',
+      returnsReconciled: true,
+    },
+    hmoRemittance: {
+      cleared: true,
+      officerName: 'Desk Lead M. Adeleke',
+      timestamp: 'Today, 9:30 am',
+      approvedAmount: 30000,
+    },
+    pspReconciled: {
+      cleared: false,
+      officerName: 'Cashier Desk 2',
+      timestamp: 'Pending',
+      pspPaid: 4000,
+      balanceDue: 8000,
+      notes: 'Outstanding PSP ₦8,000 pending settlement.',
+    },
+    overallStatus: 'pending',
+    gatePassCode: 'WP-PEND-LAG-2026-4401',
+  },
+];
+
+export const RX_ORDERS_SEED: RxPrescriptionOrder[] = [
+  {
+    id: 'rx1',
+    billId: 'b1',
+    doctorName: 'Dr. O. Alabi',
+    clinicName: 'Redeemer Specialist Clinic Outpatient',
+    date: '24 Sep 2026',
+    status: 'pending_dispense',
+    totalBrandCost: 34000,
+    totalGenericCost: 13000,
+    savingsWithGeneric: 21000,
+    items: [
+      {
+        id: 'rx_it1',
+        brandName: 'Coartem 80/480mg (Novartis)',
+        brandPrice: 12500,
+        genericName: 'Artemether + Lumefantrine 80/480mg',
+        genericPrice: 4500,
+        dosage: '1 tab b.i.d for 3 days',
+        nafdacRegNo: 'A4-4821',
+        formularyTier: 'Tier 1 (100% HMO)',
+        hmoCoverBrand: 4500,
+        pspBrand: 8000,
+        hmoCoverGeneric: 4500,
+        pspGeneric: 0,
+        selectedOption: 'generic',
+      },
+      {
+        id: 'rx_it2',
+        brandName: 'Augmentin 1g (GSK)',
+        brandPrice: 18000,
+        genericName: 'Amoxicillin + Clavulanic Acid 1g',
+        genericPrice: 7500,
+        dosage: '1 tab b.i.d for 7 days',
+        nafdacRegNo: '04-1189',
+        formularyTier: 'Tier 1 (100% HMO)',
+        hmoCoverBrand: 7500,
+        pspBrand: 10500,
+        hmoCoverGeneric: 7500,
+        pspGeneric: 0,
+        selectedOption: 'generic',
+      },
+      {
+        id: 'rx_it3',
+        brandName: 'Panadol Extra (GSK)',
+        brandPrice: 3500,
+        genericName: 'Paracetamol BP 500mg',
+        genericPrice: 1000,
+        dosage: '2 tabs t.i.d p.r.n',
+        nafdacRegNo: '04-0312',
+        formularyTier: 'Tier 1 (100% HMO)',
+        hmoCoverBrand: 1000,
+        pspBrand: 2500,
+        hmoCoverGeneric: 1000,
+        pspGeneric: 0,
+        selectedOption: 'generic',
+      },
+    ],
+  },
+];
+
+export const USSD_BANKS_SEED: UssdBankMapping[] = [
+  {
+    bankCode: 'gtb',
+    bankName: 'Guaranty Trust Bank (GTBank)',
+    ussdPrefix: '*737*',
+    sampleString: '*737*50*AMOUNT*108#',
+  },
+  {
+    bankCode: 'zenith',
+    bankName: 'Zenith Bank',
+    ussdPrefix: '*966*',
+    sampleString: '*966*6*AMOUNT*BILLCODE#',
+  },
+  {
+    bankCode: 'access',
+    bankName: 'Access Bank',
+    ussdPrefix: '*901*',
+    sampleString: '*901*3*AMOUNT*BILLCODE#',
+  },
+  {
+    bankCode: 'firstbank',
+    bankName: 'First Bank of Nigeria',
+    ussdPrefix: '*894*',
+    sampleString: '*894*894*AMOUNT*BILLCODE#',
+  },
+  {
+    bankCode: 'uba',
+    bankName: 'United Bank for Africa (UBA)',
+    ussdPrefix: '*919*',
+    sampleString: '*919*8*AMOUNT*BILLCODE#',
+  },
+  {
+    bankCode: 'stanbic',
+    bankName: 'Stanbic IBTC Bank',
+    ussdPrefix: '*909*',
+    sampleString: '*909*22*AMOUNT*BILLCODE#',
+  },
+  {
+    bankCode: 'wellipay',
+    bankName: 'WelliPay Direct Shortcode (Zero-Data)',
+    ussdPrefix: '*347*88*',
+    sampleString: '*347*88*BILLCODE#',
+  },
+];
+
+export const OFFLINE_VOUCHERS_SEED: OfflineVoucher[] = [
+  {
+    id: 'ov1',
+    billId: 'b1',
+    billCode: 'BL-4019',
+    patientName: 'Amina Bello',
+    hospitalName: 'St. Nicholas Hospital',
+    amount: 12000,
+    issuedAt: '24 Sep 2026, 11:00 am',
+    expiresAt: '25 Sep 2026, 11:00 am',
+    voucherToken: 'WP-VOUCH-78A2-E40B-991C',
+    qrPayload: 'WP://OFFLINE/VOUCHER/b1/12000/78A2E40B',
+    verifiedOffline: true,
+  },
+];
+
+export const PROVIDER_DESK_SEED: ProviderBillingDesk = {
+  facilityId: 'fac2',
+  facilityName: 'Redeemer Specialist Clinic',
+  operatorName: 'Sister Chinyere Eze',
+  role: 'Hospital Cashier & HMO Desk Lead',
+  todaysStats: {
+    totalBilled: 1240000,
+    hmoClaims: 890000,
+    pspCollected: 350000,
+    patientsCount: 18,
+  },
+  liveQueue: [
+    {
+      id: 'q1',
+      patientName: 'Amina Bello',
+      welliRecordId: 'WR-8849-LAG',
+      service: 'Appendectomy Surgical Follow-up',
+      totalAmount: 40000,
+      hmoName: 'Hygeia HMO (Gold Plan)',
+      hmoApproved: 30000,
+      pspAmount: 10000,
+      status: 'awaiting_psp',
+      createdAt: '10:45 am',
+    },
+    {
+      id: 'q2',
+      patientName: 'Babajide Adeleke',
+      welliRecordId: 'WR-1209-LAG',
+      service: 'MRI Brain & Contrast Scan',
+      totalAmount: 120000,
+      hmoName: 'AXA Mansard (Platinum)',
+      hmoApproved: 95000,
+      pspAmount: 25000,
+      status: 'awaiting_adjudication',
+      createdAt: '11:15 am',
+    },
+    {
+      id: 'q3',
+      patientName: 'Grace Okafor',
+      welliRecordId: 'WR-5512-LAG',
+      service: 'Antenatal Comprehensive Panel',
+      totalAmount: 35000,
+      hmoName: 'Reliance HMO',
+      hmoApproved: 35000,
+      pspAmount: 0,
+      status: 'cleared',
+      createdAt: '09:20 am',
+    },
+  ],
+  generatedBillCodes: [
+    {
+      code: 'BL-9482',
+      patientName: 'Amina Bello',
+      amount: 185000,
+      service: 'Laparoscopic Appendectomy',
+      createdAt: 'Today, 8:00 am',
+      claimed: true,
+    },
+    {
+      code: 'BL-4019',
+      patientName: 'Amina Bello',
+      amount: 42000,
+      service: 'Laboratory Panel & Culture',
+      createdAt: 'Yesterday, 3:30 pm',
+      claimed: true,
+    },
+    {
+      code: 'BL-8821',
+      patientName: 'Babajide Adeleke',
+      amount: 120000,
+      service: 'MRI Brain & Contrast Scan',
+      createdAt: 'Today, 11:15 am',
+      claimed: false,
+    },
+  ],
+};
+
+export const HEALTHSAVE_POTS_SEED: HealthSavePot[] = [
+  {
+    id: 'pot1',
+    title: 'Emergency Medical Reserve',
+    category: 'Emergency',
+    targetAmount: 50000,
+    currentAmount: 7000,
+    monthlyContribution: 5000,
+    interestYieldAnnual: 11.5,
+    roundUpEnabled: true,
+    autoDeductDay: 28,
+    history: [
+      {
+        id: 'ptx1',
+        date: 'Today, 9:00 am',
+        amount: 250,
+        type: 'roundup',
+        note: 'Spare change roundup from hospital pharmacy payment',
+      },
+      {
+        id: 'ptx2',
+        date: '20 Sep 2026',
+        amount: 5000,
+        type: 'deposit',
+        note: 'Monthly standing order contribution',
+      },
+      {
+        id: 'ptx3',
+        date: '1 Sep 2026',
+        amount: 1750,
+        type: 'interest',
+        note: 'Monthly compound interest yield (11.5% APY)',
+      },
+    ],
+  },
+  {
+    id: 'pot2',
+    title: 'Maternity & Delivery Fund',
+    category: 'Maternity',
+    targetAmount: 150000,
+    currentAmount: 45000,
+    monthlyContribution: 15000,
+    interestYieldAnnual: 12.0,
+    roundUpEnabled: true,
+    autoDeductDay: 25,
+    history: [
+      {
+        id: 'ptx4',
+        date: '15 Sep 2026',
+        amount: 15000,
+        type: 'deposit',
+        note: 'Antenatal care target contribution',
+      },
+      {
+        id: 'ptx5',
+        date: '15 Aug 2026',
+        amount: 15000,
+        type: 'deposit',
+        note: 'Antenatal care target contribution',
+      },
+    ],
+  },
+  {
+    id: 'pot3',
+    title: 'Elderly Parents Healthcare Pot',
+    category: 'Elderly Care',
+    targetAmount: 80000,
+    currentAmount: 28000,
+    monthlyContribution: 10000,
+    interestYieldAnnual: 11.0,
+    roundUpEnabled: false,
+    autoDeductDay: 1,
+    history: [
+      {
+        id: 'ptx6',
+        date: '1 Sep 2026',
+        amount: 10000,
+        type: 'deposit',
+        note: 'Parents monthly hypertensive meds reserve',
+      },
+    ],
+  },
+];

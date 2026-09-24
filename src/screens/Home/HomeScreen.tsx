@@ -116,6 +116,67 @@ export default function HomeScreen({ navigation }: any) {
               <Text style={{fontSize:fontSize.xs,color:colors.textSecondary,marginTop:2}}>6 Linked · Direct Routing</Text>
             </TouchableOpacity>
           </View>
+
+          {/* New Advanced Ecosystem Services */}
+          <View style={{flexDirection:'row',gap:spacing.sm,marginTop:spacing.sm}}>
+            <TouchableOpacity
+              style={{flex:1,backgroundColor:'#F0FDF4',padding:spacing.md,borderRadius:radius.sm,borderColor:'#86EFAC',borderWidth:1}}
+              activeOpacity={0.7}
+              onPress={() => navigation.navigate('WelliPass')}
+            >
+              <Text style={{fontSize:fontSize.sm,fontWeight:'700',color:'#166534'}}>⚡ WelliPass™</Text>
+              <Text style={{fontSize:fontSize.xs,color:'#15803D',marginTop:2}}>Discharge QR Gate Pass</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={{flex:1,backgroundColor:'#FAF5FF',padding:spacing.md,borderRadius:radius.sm,borderColor:'#E9D5FF',borderWidth:1}}
+              activeOpacity={0.7}
+              onPress={() => navigation.navigate('FamilyPayHub')}
+            >
+              <Text style={{fontSize:fontSize.sm,fontWeight:'700',color:'#7E22CE'}}>🌍 FamilyPay™</Text>
+              <Text style={{fontSize:fontSize.xs,color:'#9333EA',marginTop:2}}>Diaspora & Group Pools</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={{flexDirection:'row',gap:spacing.sm,marginTop:spacing.sm}}>
+            <TouchableOpacity
+              style={{flex:1,backgroundColor:'#FFFBEB',padding:spacing.md,borderRadius:radius.sm,borderColor:'#FDE68A',borderWidth:1}}
+              activeOpacity={0.7}
+              onPress={() => navigation.navigate('RxPharmacy')}
+            >
+              <Text style={{fontSize:fontSize.sm,fontWeight:'700',color:'#B45309'}}>💊 Rx Pharmacy</Text>
+              <Text style={{fontSize:fontSize.xs,color:'#D97706',marginTop:2}}>Generic Sparing Savings</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={{flex:1,backgroundColor:'#FEF2F2',padding:spacing.md,borderRadius:radius.sm,borderColor:'#FECACA',borderWidth:1}}
+              activeOpacity={0.7}
+              onPress={() => navigation.navigate('UssdOffline')}
+            >
+              <Text style={{fontSize:fontSize.sm,fontWeight:'700',color:'#B91C1C'}}>📶 Offline USSD</Text>
+              <Text style={{fontSize:fontSize.xs,color:'#DC2626',marginTop:2}}>*347# Zero-Data Mode</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={{flexDirection:'row',gap:spacing.sm,marginTop:spacing.sm}}>
+            <TouchableOpacity
+              style={{flex:1,backgroundColor:'#F0F9FA',padding:spacing.md,borderRadius:radius.sm,borderColor:'#CCECEF',borderWidth:1}}
+              activeOpacity={0.7}
+              onPress={() => navigation.navigate('HealthSavePots')}
+            >
+              <Text style={{fontSize:fontSize.sm,fontWeight:'700',color:colors.accentDark}}>🏺 Smart Ajo Pots</Text>
+              <Text style={{fontSize:fontSize.xs,color:colors.accentMid,marginTop:2}}>11.5% APY · Round-up</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={{flex:1,backgroundColor:colors.surfaceAlt,padding:spacing.md,borderRadius:radius.sm,borderColor:colors.border,borderWidth:1}}
+              activeOpacity={0.7}
+              onPress={() => navigation.navigate('ProviderDesk')}
+            >
+              <Text style={{fontSize:fontSize.sm,fontWeight:'700',color:colors.textPrimary}}>🏢 Hospital Desk</Text>
+              <Text style={{fontSize:fontSize.xs,color:colors.textSecondary,marginTop:2}}>Cashier & HMO Portal</Text>
+            </TouchableOpacity>
+          </View>
         </Card>
 
         {/* Recent bills */}

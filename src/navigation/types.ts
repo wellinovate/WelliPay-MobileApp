@@ -51,6 +51,14 @@ export type RootStackParamList = {
   // Dual-Payer & Healthcare Episodes
   EpisodeTimeline: { episodeId?: string } | undefined;
   HmoReconcile: { billId?: string } | undefined;
+
+  // Advanced Healthcare Ecosystem
+  FamilyPayHub: { billId?: string } | undefined;
+  WelliPass: { billId?: string; passId?: string } | undefined;
+  RxPharmacy: { orderId?: string } | undefined;
+  UssdOffline: { billId?: string } | undefined;
+  ProviderDesk: undefined;
+  HealthSavePots: undefined;
   // Healthcare & Insurance
   Hmo: undefined;
   AddHmo: undefined;

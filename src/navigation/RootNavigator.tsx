@@ -58,6 +58,12 @@ import WelliRecordSyncScreen from '../screens/WelliRecord/WelliRecordSyncScreen'
 import FacilityDirectoryScreen from '../screens/Facilities/FacilityDirectoryScreen';
 import EpisodeTimelineScreen from '../screens/Bills/EpisodeTimelineScreen';
 import HmoReconcileScreen from '../screens/HMO/HmoReconcileScreen';
+import { FamilyPayHubScreen } from '../screens/FamilyPay/FamilyPayHubScreen';
+import { WelliPassScreen } from '../screens/Discharge/WelliPassScreen';
+import { RxPharmacyScreen } from '../screens/Pharmacy/RxPharmacyScreen';
+import { UssdOfflineScreen } from '../screens/Offline/UssdOfflineScreen';
+import { ProviderDeskScreen } from '../screens/Provider/ProviderDeskScreen';
+import { HealthSavePotsScreen } from '../screens/Wallet/HealthSavePotsScreen';
 
 
 
@@ -200,6 +206,14 @@ export default function RootNavigator() {
       <Stack.Screen name="PreAuth" component={PreAuthScreen} />
       <Stack.Screen name="WelliRecordSync" component={WelliRecordSyncScreen} />
       <Stack.Screen name="FacilityDirectory" component={FacilityDirectoryScreen} />
+
+      {/* Advanced Healthcare Ecosystem */}
+      <Stack.Screen name="FamilyPayHub" component={FamilyPayHubScreen} />
+      <Stack.Screen name="WelliPass" component={WelliPassScreen} />
+      <Stack.Screen name="RxPharmacy" component={RxPharmacyScreen} />
+      <Stack.Screen name="UssdOffline" component={UssdOfflineScreen} />
+      <Stack.Screen name="ProviderDesk" component={ProviderDeskScreen} />
+      <Stack.Screen name="HealthSavePots" component={HealthSavePotsScreen} />
 
       {/* Profile Flow */}
       <Stack.Screen name="Security" component={SecurityScreen} />

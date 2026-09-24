@@ -9,6 +9,13 @@ import {
   Bill, Payment, Person, WalletTxn, FinancingPlan,
   HmoPolicy, PreAuthRequest, HospitalFacility, HealthcareEpisode,
   PayerAllocation, PayerType,
+  FAMILY_PAY_SEED, WELLIPASS_SEED, RX_ORDERS_SEED,
+  USSD_BANKS_SEED, OFFLINE_VOUCHERS_SEED, PROVIDER_DESK_SEED,
+  HEALTHSAVE_POTS_SEED,
+  FamilyPayRequest, FamilyContributor, WelliPassClearance,
+  RxPrescriptionOrder, RxPrescriptionItem, UssdBankMapping,
+  OfflineVoucher, ProviderBillingDesk, ProviderQueueItem,
+  HealthSavePot, HealthSavePotTxn,
 } from './seed';
 
 export type Lang = 'en' | 'pcm';
@@ -75,6 +82,15 @@ export interface AppState {
   // -- delete
   deleteStage: 'idle' | 'confirming' | 'done';
 
+
+  // -- FamilyPay, WelliPass, Rx & Ecosystem
+  familyPayLinks: FamilyPayRequest[];
+  welliPasses: WelliPassClearance[];
+  rxOrders: RxPrescriptionOrder[];
+  ussdBanks: UssdBankMapping[];
+  offlineVouchers: OfflineVoucher[];
+  providerDesk: ProviderBillingDesk;
+  healthSavePots: HealthSavePot[];
   // -- actions
   setLang: (lang: Lang) => void;
   setActivePerson: (id: string) => void;
@@ -105,6 +121,17 @@ export interface AppState {
   submitPreAuth: (preAuth: PreAuthRequest) => void;
   syncWelliRecord: (facilityId?: string) => Promise<void>;
   toggleFacilityLink: (facilityId: string) => void;
+  createFamilyPayLink: (billId: string, poolTargetNgn?: number) => FamilyPayRequest;
+  contributeToFamilyPool: (linkId: string, contributor: Omit<FamilyContributor, 'id' | 'date'>) => void;
+  requestWelliPass: (billId: string, ward: string) => WelliPassClearance;
+  updateWelliPassStep: (passId: string, step: 'doctor' | 'pharmacy' | 'hmo' | 'psp', officerName: string) => void;
+  toggleRxItemOption: (orderId: string, itemId: string) => void;
+  generateOfflineVoucher: (billId: string, amount: number) => OfflineVoucher;
+  generateProviderBill: (patientName: string, service: string, amount: number, hmoName?: string) => string;
+  providerAdjudicateQueueItem: (itemId: string, hmoApproved: number) => void;
+  addHealthSavePot: (pot: Omit<HealthSavePot, 'id' | 'currentAmount' | 'history'>) => void;
+  depositToHealthSavePot: (potId: string, amount: number, note?: string) => void;
+  togglePotRoundUp: (potId: string) => void;
 }
 
 const initState = () => ({
@@ -135,6 +162,18 @@ const initState = () => ({
   activeEpisodeId: 'ep1',
   lastSyncTime: 'Today, 8:15 am',
   isSyncing: false,
+  familyPayLinks: FAMILY_PAY_SEED.map(f => ({ ...f, contributors: f.contributors.map(c => ({ ...c })) })),
+  welliPasses: WELLIPASS_SEED.map(w => ({ ...w })),
+  rxOrders: RX_ORDERS_SEED.map(r => ({ ...r, items: r.items.map(it => ({ ...it })) })),
+  ussdBanks: [...USSD_BANKS_SEED],
+  offlineVouchers: [...OFFLINE_VOUCHERS_SEED],
+  providerDesk: {
+    ...PROVIDER_DESK_SEED,
+    liveQueue: PROVIDER_DESK_SEED.liveQueue.map(q => ({ ...q })),
+    generatedBillCodes: PROVIDER_DESK_SEED.generatedBillCodes.map(g => ({ ...g })),
+  },
+  healthSavePots: HEALTHSAVE_POTS_SEED.map(p => ({ ...p, history: p.history.map(h => ({ ...h })) })),
+
 
   hmoShare: true,
   marketing: false,
@@ -630,6 +669,310 @@ export const useStore = create<AppState>()(
         set({ facilities: updated });
       },
 
+
+      createFamilyPayLink: (billId, poolTargetNgn) => {
+        const s = get();
+        const bill = s.bills.find(b => b.id === billId) || s.bills[0];
+        const target = poolTargetNgn || (bill ? (bill.patientSelfPay || bill.amountTotal) : 50000);
+        const codeNum = Math.floor(100 + Math.random() * 900);
+        const shortCode = `WLI-FAM-${codeNum}`;
+        const patientName = s.people.find(p => p.id === (bill?.personId || 'self'))?.name || 'Amina Bello';
+        const serviceDesc = bill?.lines[0]?.name || 'Hospital Treatment';
+        const newLink: FamilyPayRequest = {
+          id: `fp_${Date.now()}`,
+          billId: bill ? bill.id : 'b1',
+          patientName,
+          hospitalName: bill ? bill.facility : 'Redeemer Specialist Clinic',
+          serviceDescription: serviceDesc,
+          totalAmountNgn: bill ? (bill.patientSelfPay || bill.amountTotal) : target,
+          webLinkUrl: `https://wellipay.ng/pay/${bill ? bill.billNo : 'BL-9482'}?sponsor=fam`,
+          shortCode,
+          currencyRates: { USD: 1550, GBP: 2000, EUR: 1700, CAD: 1150 },
+          poolTargetNgn: target,
+          poolCollectedNgn: 0,
+          contributors: [],
+          status: 'active',
+        };
+        set({ familyPayLinks: [newLink, ...s.familyPayLinks] });
+        return newLink;
+      },
+
+      contributeToFamilyPool: (linkId, contributor) => {
+        const s = get();
+        const updated = s.familyPayLinks.map(link => {
+          if (link.id !== linkId) return link;
+          const newCol = link.poolCollectedNgn + contributor.amountNgn;
+          const newContrib: FamilyContributor = {
+            ...contributor,
+            id: `c_${Date.now()}`,
+            date: 'Just now',
+          };
+          const isFunded = newCol >= link.poolTargetNgn;
+          return {
+            ...link,
+            poolCollectedNgn: newCol,
+            status: (isFunded ? 'funded' : 'active') as 'active' | 'funded' | 'expired',
+            contributors: [newContrib, ...link.contributors],
+          };
+        });
+
+        // Also update linked bill if found
+        const targetLink = s.familyPayLinks.find(l => l.id === linkId);
+        let updatedBills = s.bills;
+        if (targetLink) {
+          updatedBills = s.bills.map(b => {
+            if (b.id !== targetLink.billId) return b;
+            const existingAllocs = b.payerAllocations || [];
+            const allocId = `alloc_fam_${Date.now()}`;
+            const famAlloc: PayerAllocation = {
+              id: allocId,
+              payerType: 'family_sponsor',
+              payerName: `FamilyPay (${contributor.name})`,
+              allocatedAmount: contributor.amountNgn,
+              paidAmount: contributor.amountNgn,
+              status: 'paid',
+              notes: contributor.message || 'Family Diaspora Contribution',
+            };
+            const newDue = Math.max(0, b.amountDue - contributor.amountNgn);
+            const newStatus = newDue <= 0 ? 'paid' : 'partly_paid';
+            return {
+              ...b,
+              amountDue: newDue,
+              status: newStatus,
+              payerAllocations: [...existingAllocs, famAlloc],
+            };
+          });
+        }
+
+        set({ familyPayLinks: updated, bills: updatedBills });
+      },
+
+      requestWelliPass: (billId, ward) => {
+        const s = get();
+        const bill = s.bills.find(b => b.id === billId) || s.bills[0];
+        const patientName = s.people.find(p => p.id === (bill?.personId || 'self'))?.name || 'Amina Bello';
+        const pspAmount = bill ? (bill.patientSelfPay || bill.amountTotal) : 10000;
+        const isPspCleared = bill ? bill.amountDue <= 0 : true;
+
+        const newPass: WelliPassClearance = {
+          id: `wp_${Date.now()}`,
+          billId: bill ? bill.id : 'b1',
+          episodeId: bill?.episodeId,
+          patientName,
+          hospitalName: bill ? bill.facility : 'Redeemer Specialist Clinic',
+          ward: ward || 'General Ward 2, Bed 8',
+          admissionDate: '22 Sep 2026',
+          dischargeDate: '24 Sep 2026',
+          doctorSignOff: {
+            cleared: true,
+            officerName: 'Dr. O. Alabi (Surgeon)',
+            timestamp: 'Today, 9:00 am',
+            notes: 'Patient clinically stable for home convalescence.',
+          },
+          pharmacyClearance: {
+            cleared: true,
+            officerName: 'Pharm. K. Danladi',
+            timestamp: 'Today, 9:30 am',
+            returnsReconciled: true,
+            notes: 'All medications dispensed.',
+          },
+          hmoRemittance: {
+            cleared: true,
+            officerName: 'HMO Desk Officer S. Eze',
+            timestamp: 'Today, 10:00 am',
+            approvedAmount: bill ? (bill.hmoAmount || 30000) : 30000,
+          },
+          pspReconciled: {
+            cleared: isPspCleared,
+            officerName: 'Cashier Desk 1',
+            timestamp: 'Today, 10:15 am',
+            pspPaid: bill ? (bill.amountTotal - bill.amountDue) : pspAmount,
+            balanceDue: bill ? bill.amountDue : 0,
+          },
+          overallStatus: !isPspCleared ? 'pending' : 'cleared',
+          gatePassCode: `WP-PASS-LAG-2026-${Math.floor(1000 + Math.random() * 9000)}`,
+          clearedAt: isPspCleared ? 'Today, 10:15 am' : undefined,
+          securityGuardVerified: false,
+        };
+        set({ welliPasses: [newPass, ...s.welliPasses] });
+        return newPass;
+      },
+
+      updateWelliPassStep: (passId, step, officerName) => {
+        const s = get();
+        const updated = s.welliPasses.map(p => {
+          if (p.id !== passId) return p;
+          const time = 'Just now';
+          const next = { ...p };
+          if (step === 'doctor') {
+            next.doctorSignOff = { cleared: true, officerName, timestamp: time };
+          } else if (step === 'pharmacy') {
+            next.pharmacyClearance = { cleared: true, officerName, timestamp: time, returnsReconciled: true };
+          } else if (step === 'hmo') {
+            next.hmoRemittance = { ...next.hmoRemittance, cleared: true, officerName, timestamp: time };
+          } else if (step === 'psp') {
+            next.pspReconciled = { ...next.pspReconciled, cleared: true, officerName, timestamp: time, balanceDue: 0 };
+          }
+
+          const allClear = next.doctorSignOff.cleared && next.pharmacyClearance.cleared &&
+                           next.hmoRemittance.cleared && next.pspReconciled.cleared;
+          if (allClear) {
+            next.overallStatus = 'cleared';
+            next.clearedAt = time;
+          }
+          return next;
+        });
+        set({ welliPasses: updated });
+      },
+
+      toggleRxItemOption: (orderId, itemId) => {
+        const s = get();
+        const updated = s.rxOrders.map(order => {
+          if (order.id !== orderId) return order;
+          const updatedItems = order.items.map(it => {
+            if (it.id !== itemId) return it;
+            const newOption = it.selectedOption === 'brand' ? 'generic' : 'brand';
+            return { ...it, selectedOption: newOption as 'brand' | 'generic' };
+          });
+          const brandTotal = updatedItems.reduce((acc, it) => acc + it.brandPrice, 0);
+          const genericTotal = updatedItems.reduce((acc, it) => acc + (it.selectedOption === 'generic' ? it.genericPrice : it.brandPrice), 0);
+          return {
+            ...order,
+            items: updatedItems,
+            totalGenericCost: genericTotal,
+            savingsWithGeneric: Math.max(0, brandTotal - genericTotal),
+          };
+        });
+        set({ rxOrders: updated });
+      },
+
+      generateOfflineVoucher: (billId, amount) => {
+        const s = get();
+        const bill = s.bills.find(b => b.id === billId) || s.bills[0];
+        const patientName = s.people.find(p => p.id === (bill?.personId || 'self'))?.name || 'Amina Bello';
+        const hex = Math.random().toString(16).substring(2, 8).toUpperCase();
+        const token = `WP-VOUCH-${hex}-${Math.floor(1000 + Math.random() * 9000)}`;
+        const voucher: OfflineVoucher = {
+          id: `ov_${Date.now()}`,
+          billId: bill ? bill.id : 'b1',
+          billCode: bill ? bill.billNo : 'BL-4019',
+          patientName,
+          hospitalName: bill ? bill.facility : 'Redeemer Specialist Clinic',
+          amount: amount || (bill ? bill.amountDue : 10000),
+          issuedAt: 'Today, Just now',
+          expiresAt: 'Tomorrow, 24 Hours',
+          voucherToken: token,
+          qrPayload: `WP://OFFLINE/VOUCHER/${bill ? bill.id : 'b1'}/${amount}/${hex}`,
+          verifiedOffline: true,
+        };
+        set({ offlineVouchers: [voucher, ...s.offlineVouchers] });
+        return voucher;
+      },
+
+      generateProviderBill: (patientName, service, amount, hmoName) => {
+        const s = get();
+        const code = `BL-${Math.floor(1000 + Math.random() * 9000)}`;
+        const newDesk = {
+          ...s.providerDesk,
+          generatedBillCodes: [
+            {
+              code,
+              patientName,
+              amount,
+              service,
+              createdAt: 'Just now',
+              claimed: false,
+            },
+            ...s.providerDesk.generatedBillCodes,
+          ],
+          liveQueue: [
+            {
+              id: `q_${Date.now()}`,
+              patientName,
+              welliRecordId: `WR-${Math.floor(1000 + Math.random() * 9000)}-LAG`,
+              service,
+              totalAmount: amount,
+              hmoName: hmoName || 'Hygeia HMO',
+              hmoApproved: 0,
+              pspAmount: amount,
+              status: 'awaiting_adjudication' as const,
+              createdAt: 'Just now',
+            },
+            ...s.providerDesk.liveQueue,
+          ],
+        };
+        set({ providerDesk: newDesk });
+        return code;
+      },
+
+      providerAdjudicateQueueItem: (itemId, hmoApproved) => {
+        const s = get();
+        const updatedQueue = s.providerDesk.liveQueue.map(item => {
+          if (item.id !== itemId) return item;
+          const psp = Math.max(0, item.totalAmount - hmoApproved);
+          return {
+            ...item,
+            hmoApproved,
+            pspAmount: psp,
+            status: (psp === 0 ? 'cleared' : 'awaiting_psp') as any,
+          };
+        });
+        set({
+          providerDesk: {
+            ...s.providerDesk,
+            liveQueue: updatedQueue,
+          },
+        });
+      },
+
+      addHealthSavePot: (pot) => {
+        const s = get();
+        const newPot: HealthSavePot = {
+          ...pot,
+          id: `pot_${Date.now()}`,
+          currentAmount: 0,
+          history: [
+            {
+              id: `ptx_${Date.now()}`,
+              date: 'Today',
+              amount: 0,
+              type: 'deposit',
+              note: 'Pot initialized',
+            },
+          ],
+        };
+        set({ healthSavePots: [newPot, ...s.healthSavePots] });
+      },
+
+      depositToHealthSavePot: (potId, amount, note) => {
+        const s = get();
+        const updated = s.healthSavePots.map(pot => {
+          if (pot.id !== potId) return pot;
+          const newAmount = pot.currentAmount + amount;
+          const newTxn: HealthSavePotTxn = {
+            id: `ptx_${Date.now()}`,
+            date: 'Today',
+            amount,
+            type: 'deposit',
+            note: note || 'Contribution deposit',
+          };
+          return {
+            ...pot,
+            currentAmount: newAmount,
+            history: [newTxn, ...pot.history],
+          };
+        });
+        set({ healthSavePots: updated });
+      },
+
+      togglePotRoundUp: (potId) => {
+        const s = get();
+        const updated = s.healthSavePots.map(pot =>
+          pot.id === potId ? { ...pot, roundUpEnabled: !pot.roundUpEnabled } : pot
+        );
+        set({ healthSavePots: updated });
+      },
+
       resetStore: () => set(initState()),
     }),
     {
@@ -660,6 +1003,13 @@ export const useStore = create<AppState>()(
         notifBills: state.notifBills,
         notifReceipts: state.notifReceipts,
         notifPromo: state.notifPromo,
+        familyPayLinks: state.familyPayLinks,
+        welliPasses: state.welliPasses,
+        rxOrders: state.rxOrders,
+        offlineVouchers: state.offlineVouchers,
+        providerDesk: state.providerDesk,
+        healthSavePots: state.healthSavePots,
+
       }),
       onRehydrateStorage: () => (state) => {
         state?.setHasHydrated(true);

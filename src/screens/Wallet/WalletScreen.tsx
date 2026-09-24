@@ -39,6 +39,27 @@ export default function WalletScreen({ navigation }: any) {
           </View>
         </Card>
 
+        {/* HealthSave Smart Ajo Pots */}
+        <Card style={[styles.mb, { backgroundColor: '#F0F9FA', borderColor: '#CCECEF', borderWidth: 1 }]}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Text style={[styles.kicker, { color: colors.accentDark }]}>SMART HEALTHCARE AJO</Text>
+            <View style={{ backgroundColor: '#DCFCE7', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 10 }}>
+              <Text style={{ fontSize: 9, fontWeight: '700', color: '#166534' }}>11.5% APY</Text>
+            </View>
+          </View>
+          <Text style={[styles.goalName, { fontSize: fontSize.base, marginTop: 4 }]}>Target Medical & Maternity Pots</Text>
+          <Text style={{ fontSize: fontSize.xs, color: colors.textSecondary, marginTop: 2, lineHeight: 16 }}>
+            Save small-small for hospital admissions and surgery with automated spare-change roundups.
+          </Text>
+          <Button
+            label="Manage HealthSave Pots"
+            variant="secondary"
+            fullWidth
+            style={{ marginTop: spacing.md }}
+            onPress={() => navigation.navigate('HealthSavePots')}
+          />
+        </Card>
+
         {/* Savings goal */}
         <Card style={styles.mb}>
           <Text style={styles.kicker}>{t.savingsKicker}</Text>

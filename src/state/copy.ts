@@ -183,6 +183,59 @@ const en = {
   varianceLabel: 'HMO Variance / Underpayment',
   reconcileSub: 'Provider settlement & remittance tracking',
   underpaidNotice: 'HMO Underpayment Identified',
+
+  // -- FamilyPay Diaspora & Group Pooling
+  familyPayTitle: 'FamilyPay™ Diaspora Hub',
+  familyPaySub: 'Share payment links & pool funds with family across Nigeria and diaspora',
+  shareWebLink: 'Share Web Payment Link',
+  diasporaSupportedCurrencies: 'Supports USD, GBP, EUR, CAD & NGN',
+  groupPoolTitle: 'Family Care Pooling',
+  poolProgress: (col: string, tar: string) => `Collected ${col} of ${tar}`,
+  addContribution: '+ Add Contribution',
+  copyPaymentLink: 'Copy Web Payment Link',
+  whatsappShareText: 'Send via WhatsApp',
+
+  // -- WelliPass Hospital Discharge Clearance
+  welliPassTitle: 'WelliPass™ Discharge Clearance',
+  welliPassSub: 'Digital 4-step clearance checklist & verified Green QR gate pass',
+  doctorSignOffLabel: 'Doctor Clinical Discharge',
+  pharmacyClearanceLabel: 'Pharmacy Dispense & Returns',
+  hmoRemittanceLabel: 'HMO Remittance Adjudication',
+  cashierPspLabel: 'Cashier PSP & Deposit Settlement',
+  gatePassReady: 'Green Gate Pass Ready for Exit',
+  gatePassPending: 'Discharge Clearance in Progress',
+  showGatePass: 'Display Gate QR Pass',
+
+  // -- Rx Pharmacy Formulary & Generic Cost-Comparator
+  rxPharmacyTitle: 'Rx Pharmacy & Generic Comparator',
+  rxPharmacySub: 'Save on prescription drugs with NAFDAC-approved generic substitution & HMO formulary',
+  brandNameLabel: 'Brand Medication',
+  genericNameLabel: 'NAFDAC Generic Equivalent',
+  potentialSavings: 'Total Potential Savings',
+  switchToGeneric: 'Switch to Generic (₦0 PSP)',
+  keepBrand: 'Keep Brand Name',
+
+  // -- Offline USSD & Low-Bandwidth Mode
+  offlineUssdTitle: 'Offline USSD & Zero-Data Mode',
+  offlineUssdSub: 'Generate USSD banking strings & emergency offline payment vouchers',
+  dialUssdString: 'Dial USSD String',
+  offlineVoucherLabel: 'Offline Emergency Voucher',
+  saveOfflineVoucher: 'Download / Save Voucher',
+
+  // -- Provider / Hospital Billing Desk
+  providerDeskTitle: 'Hospital Billing Desk',
+  providerDeskSub: 'Provider portal for patient queue, pre-auth verification & bill generation',
+  todaysDeskStats: 'Hospital Desk Overview',
+  livePatientQueue: 'Live Inpatient & Outpatient Queue',
+  generateNewBillCode: '+ Generate Patient Bill Code',
+
+  // -- HealthSave Smart Ajo / Micro-Savings
+  healthSavePotsTitle: 'HealthSave Smart Ajo Pots',
+  healthSavePotsSub: 'Target medical savings pots, automatic standing orders & spare-change roundups',
+  createMedicalPot: '+ Create Target Medical Pot',
+  spareChangeRoundup: 'Spare-Change Round-up Savings',
+  annualYieldRate: 'Annual Interest Yield',
+
 };
 
 const pcm: typeof en = {
@@ -297,6 +350,60 @@ const pcm: typeof en = {
   varianceLabel: 'HMO Variance / Money wey short',
   reconcileSub: 'Track provider settlement & HMO remittance',
   underpaidNotice: 'HMO Underpayment dey here',
+
+
+  // -- FamilyPay Diaspora & Group Pooling
+  familyPayTitle: 'FamilyPay™ Abroad & Family Link',
+  familyPaySub: 'Share link make family for abroad or Naija help pay bill',
+  shareWebLink: 'Share Web Payment Link',
+  diasporaSupportedCurrencies: 'E dey take USD, GBP, EUR, CAD & Naira',
+  groupPoolTitle: 'Family Joint Contribution Pot',
+  poolProgress: (col: string, tar: string) => `Dem don gather ${col} out of ${tar}`,
+  addContribution: '+ Add Money Put',
+  copyPaymentLink: 'Copy Web Link',
+  whatsappShareText: 'Send am for WhatsApp',
+
+  // -- WelliPass Hospital Discharge Clearance
+  welliPassTitle: 'WelliPass™ Hospital Discharge Pass',
+  welliPassSub: '4-step check & Green QR code to pass hospital gate',
+  doctorSignOffLabel: 'Doctor Don Clear Am',
+  pharmacyClearanceLabel: 'Pharmacy Medicine Check',
+  hmoRemittanceLabel: 'HMO Insurance Clearance',
+  cashierPspLabel: 'Cashier Payment Check',
+  gatePassReady: 'Green QR Pass Don Ready',
+  gatePassPending: 'Discharge Check Still Dey Go On',
+  showGatePass: 'Show Gate QR Code',
+
+  // -- Rx Pharmacy Formulary & Generic Cost-Comparator
+  rxPharmacyTitle: 'Pharmacy Medicine & Generic Sparing',
+  rxPharmacySub: 'Save money on medicine with genuine generic wey HMO cover',
+  brandNameLabel: 'Brand Medicine',
+  genericNameLabel: 'NAFDAC Approved Generic',
+  potentialSavings: 'Total Money Wey You Go Save',
+  switchToGeneric: 'Change to Generic (Pay ₦0)',
+  keepBrand: 'Leave Brand Medicine',
+
+  // -- Offline USSD & Low-Bandwidth Mode
+  offlineUssdTitle: 'Offline USSD & Low Network Mode',
+  offlineUssdSub: 'Use USSD code or offline token pay when network bad',
+  dialUssdString: 'Dial USSD Bank Code',
+  offlineVoucherLabel: 'Offline Emergency Voucher',
+  saveOfflineVoucher: 'Save Voucher Offline',
+
+  // -- Provider / Hospital Billing Desk
+  providerDeskTitle: 'Hospital Cashier Desk',
+  providerDeskSub: 'Hospital cashier side to check patient bill and HMO clearance',
+  todaysDeskStats: 'Hospital Cashier Today Work',
+  livePatientQueue: 'People Wey Dey Wait Line',
+  generateNewBillCode: '+ Create New Bill Code',
+
+  // -- HealthSave Smart Ajo / Micro-Savings
+  healthSavePotsTitle: 'HealthSave Ajo Health Pots',
+  healthSavePotsSub: 'Save money for sickness, delivery and operation small-small with interest',
+  createMedicalPot: '+ Start New Health Ajo Pot',
+  spareChangeRoundup: 'Spare-Change Round-up Savings',
+  annualYieldRate: 'Interest Wey E Dey Yield Yearly',
+
 };
 
 export type CopyDict = typeof en;

@@ -424,6 +424,50 @@ Step 5: Patient Self-Pay set to ${NAIRA(Math.round(totalCost * (activePolicy.coP
             </View>
           </TouchableOpacity>
 
+          <TouchableOpacity
+            style={styles.linkCard}
+            onPress={() => navigation.navigate('FamilyPayHub', { billId: bill.id })}
+          >
+            <Text style={styles.linkIcon}>🌍</Text>
+            <View>
+              <Text style={styles.linkTitle}>FamilyPay™ Diaspora Web Link</Text>
+              <Text style={styles.linkSub}>Share payment link & pool funds in USD/GBP/EUR</Text>
+            </View>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.linkCard}
+            onPress={() => navigation.navigate('WelliPass', { billId: bill.id })}
+          >
+            <Text style={styles.linkIcon}>⚡</Text>
+            <View>
+              <Text style={styles.linkTitle}>WelliPass™ Hospital Discharge Pass</Text>
+              <Text style={styles.linkSub}>4-step clinical & financial audit · Green QR Gate Pass</Text>
+            </View>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.linkCard}
+            onPress={() => navigation.navigate('RxPharmacy')}
+          >
+            <Text style={styles.linkIcon}>💊</Text>
+            <View>
+              <Text style={styles.linkTitle}>Rx Pharmacy Formulary & Generics</Text>
+              <Text style={styles.linkSub}>Switch to NAFDAC generic equivalent (100% HMO covered)</Text>
+            </View>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.linkCard}
+            onPress={() => navigation.navigate('UssdOffline', { billId: bill.id })}
+          >
+            <Text style={styles.linkIcon}>📶</Text>
+            <View>
+              <Text style={styles.linkTitle}>Offline USSD & Emergency Banking</Text>
+              <Text style={styles.linkSub}>Dial *347*88# or generate encrypted offline voucher</Text>
+            </View>
+          </TouchableOpacity>
+
           <TouchableOpacity style={styles.linkCard} onPress={() => navigation.navigate('HmoReconcile')}>
             <Text style={styles.linkIcon}>⚖️</Text>
             <View>
