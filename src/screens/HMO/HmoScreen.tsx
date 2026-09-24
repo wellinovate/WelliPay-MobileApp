@@ -102,6 +102,38 @@ export default function HmoScreen({ navigation }: any) {
             {pa.notes ? <Text style={styles.paNotes}>{pa.notes}</Text> : null}
           </Card>
         ))}
+
+        {/* WelliPay Reconcile Card */}
+        <Card style={{ marginTop: spacing.md, backgroundColor: '#E8F4F7', borderColor: '#B8D9E0' }}>
+          <Text style={{ fontSize: fontSize.xs, fontWeight: '700', color: colors.accentDark, letterSpacing: 0.8 }}>PROVIDER SETTLEMENT & CLAIMS</Text>
+          <Text style={{ fontSize: fontSize.base, fontWeight: '700', color: colors.textPrimary, marginTop: 4 }}>WelliPay Reconcile™</Text>
+          <Text style={{ fontSize: fontSize.xs, color: colors.textSecondary, marginTop: 2, lineHeight: 18 }}>
+            Audit approved HMO claim remittances and detect underpayment variances with partner hospitals.
+          </Text>
+          <Button
+            label="Open WelliPay Reconcile™"
+            variant="secondary"
+            fullWidth
+            style={{ marginTop: spacing.sm }}
+            onPress={() => navigation.navigate('HmoReconcile')}
+          />
+        </Card>
+
+        {/* Episode Financial Timeline Card */}
+        <Card style={{ marginTop: spacing.md, marginBottom: spacing.lg }}>
+          <Text style={{ fontSize: fontSize.xs, fontWeight: '700', color: colors.textTertiary, letterSpacing: 0.8 }}>EPISODE CARE JOURNEY</Text>
+          <Text style={{ fontSize: fontSize.base, fontWeight: '700', color: colors.textPrimary, marginTop: 4 }}>Healthcare Episode Timelines</Text>
+          <Text style={{ fontSize: fontSize.xs, color: colors.textSecondary, marginTop: 2, lineHeight: 18 }}>
+            View continuous financial tracking across Consultation, Labs, and Medication with HMO vs Self-Pay splits.
+          </Text>
+          <Button
+            label="View Episode Timelines"
+            variant="secondary"
+            fullWidth
+            style={{ marginTop: spacing.sm }}
+            onPress={() => navigation.navigate('EpisodeTimeline')}
+          />
+        </Card>
       </ScrollView>
 
       <View style={styles.footer}>

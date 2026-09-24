@@ -5,9 +5,10 @@ import { NAIRA } from '../utils/helpers';
 import {
   PEOPLE_SEED, BILLS_SEED, PAYMENTS_SEED, WALLETS_SEED,
   WALLET_TXNS_SEED, SAVINGS_SEED, FINANCING_SEED,
-  HMO_SEED, PREAUTH_SEED, FACILITIES_SEED,
+  HMO_SEED, PREAUTH_SEED, FACILITIES_SEED, EPISODES_SEED,
   Bill, Payment, Person, WalletTxn, FinancingPlan,
-  HmoPolicy, PreAuthRequest, HospitalFacility,
+  HmoPolicy, PreAuthRequest, HospitalFacility, HealthcareEpisode,
+  PayerAllocation, PayerType,
 } from './seed';
 
 export type Lang = 'en' | 'pcm';
@@ -38,6 +39,8 @@ export interface AppState {
   activeHmoId: string;
   preAuths: PreAuthRequest[];
   facilities: HospitalFacility[];
+  episodes: HealthcareEpisode[];
+  activeEpisodeId: string | null;
   lastSyncTime: string;
   isSyncing: boolean;
 
@@ -92,6 +95,13 @@ export interface AppState {
   addHmoPolicy: (policy: HmoPolicy) => void;
   setActiveHmo: (id: string) => void;
   applyHmoToBill: (billId: string, policyId?: string) => void;
+  adjudicateHmoTariff: (billId: string, policyId?: string) => void;
+  applyDepositToBill: (billId: string, depositAmount: number) => void;
+  fundPspWithHealthSave: (billId: string, amount: number) => void;
+  requestFamilyPay: (billId: string, sponsorName: string, amount: number) => void;
+  applyEmployerBenefit: (billId: string, employerName: string, amount: number) => void;
+  recordHmoRemittance: (billId: string, receivedAmount: number) => void;
+  setActiveEpisode: (episodeId: string | null) => void;
   submitPreAuth: (preAuth: PreAuthRequest) => void;
   syncWelliRecord: (facilityId?: string) => Promise<void>;
   toggleFacilityLink: (facilityId: string) => void;
@@ -103,7 +113,11 @@ const initState = () => ({
   appPin: '1234',
   biometricEnabled: false,
   activePerson: 'self',
-  bills: BILLS_SEED.map(b => ({ ...b, lines: [...b.lines] })),
+  bills: BILLS_SEED.map(b => ({
+    ...b,
+    lines: [...b.lines],
+    payerAllocations: b.payerAllocations ? b.payerAllocations.map(p => ({ ...p })) : undefined,
+  })),
   payments: [...PAYMENTS_SEED],
   wallets: { ...WALLETS_SEED },
   walletTxns: [...WALLET_TXNS_SEED],
@@ -117,6 +131,8 @@ const initState = () => ({
   activeHmoId: 'hmo1',
   preAuths: PREAUTH_SEED.map(p => ({ ...p })),
   facilities: FACILITIES_SEED.map(f => ({ ...f, acceptedHmos: [...f.acceptedHmos] })),
+  episodes: EPISODES_SEED.map(e => ({ ...e, items: e.items.map(it => ({ ...it })) })),
+  activeEpisodeId: 'ep1',
   lastSyncTime: 'Today, 8:15 am',
   isSyncing: false,
 
@@ -226,7 +242,26 @@ export const useStore = create<AppState>()(
             if (b.id !== s.payBillId) return b;
             const newDue = Math.max(0, b.amountDue - amt);
             remaining = newDue;
-            return { ...b, amountDue: newDue, status: newDue === 0 ? 'paid' : 'partly_paid' };
+
+            // update payer allocations
+            const updatedAllocations = (b.payerAllocations || []).map(pa => {
+              if (pa.payerType === 'patient_self_pay') {
+                const newPaid = pa.paidAmount + amt;
+                return {
+                  ...pa,
+                  paidAmount: newPaid,
+                  status: (newPaid >= pa.allocatedAmount ? 'paid' : 'pending') as any,
+                };
+              }
+              return pa;
+            });
+
+            return {
+              ...b,
+              amountDue: newDue,
+              status: newDue === 0 ? 'paid' : 'partly_paid',
+              payerAllocations: updatedAllocations.length ? updatedAllocations : b.payerAllocations,
+            };
           });
         }
 
@@ -260,17 +295,36 @@ export const useStore = create<AppState>()(
           );
         }
 
-        const bill = s.bills.find(b => b.id === s.payBillId);
+        // update active episode if bill linked
+        const currentBill = s.bills.find(b => b.id === s.payBillId);
+        let newEpisodes = s.episodes;
+        if (currentBill && currentBill.episodeId) {
+          newEpisodes = s.episodes.map(ep => {
+            if (ep.id === currentBill.episodeId) {
+              const newPaid = ep.patientPaid + amt;
+              const newDue = Math.max(0, ep.patientSelfPay - newPaid);
+              return {
+                ...ep,
+                patientPaid: newPaid,
+                patientDue: newDue,
+                status: (newDue === 0 ? 'completed' : 'active') as any,
+              };
+            }
+            return ep;
+          });
+        }
+
         const newPayment: Payment = {
           id: ref,
           billId: s.payBillId || undefined,
-          facility: bill ? bill.facility : 'WelliPay Direct',
+          facility: currentBill ? currentBill.facility : 'WelliPay Direct',
           amount: amt,
           method: s.payMethod || 'card',
           date: dateStr,
           time: timeStr,
           status: 'successful',
           personId: s.activePerson,
+          payerType: 'patient_self_pay',
         };
 
         set({
@@ -278,6 +332,7 @@ export const useStore = create<AppState>()(
           wallets: newWallets,
           walletTxns: newTxns,
           financingPlans: newPlans,
+          episodes: newEpisodes,
           payments: [newPayment, ...s.payments],
           payOutcome: 'success',
           lastPayRef: ref,
@@ -329,6 +384,10 @@ export const useStore = create<AppState>()(
       setActiveHmo: (id) => set({ activeHmoId: id }),
 
       applyHmoToBill: (billId, policyId) => {
+        get().adjudicateHmoTariff(billId, policyId);
+      },
+
+      adjudicateHmoTariff: (billId, policyId) => {
         const s = get();
         const policy = s.hmoPolicies.find(p => p.id === (policyId || s.activeHmoId)) || s.hmoPolicies[0];
         if (!policy) return;
@@ -336,19 +395,203 @@ export const useStore = create<AppState>()(
         const newBills = s.bills.map(b => {
           if (b.id !== billId) return b;
           const total = b.amountTotal;
+          // Step 3: Check benefit (provider tariff vs HMO benefit)
           const coPay = Math.round((total * policy.coPayPercent) / 100);
           const hmoPortion = total - coPay;
+          const deposit = b.depositPaid || 0;
+          const depositApplied = Math.min(deposit, coPay);
+          const refundCredit = Math.max(0, deposit - coPay);
+          const netDue = Math.max(0, coPay - depositApplied);
+
+          const hmoAlloc: PayerAllocation = {
+            id: 'pa_' + Date.now() + '_hmo',
+            payerType: 'hmo',
+            payerName: `${policy.provider} (${policy.planTier})`,
+            allocatedAmount: hmoPortion,
+            paidAmount: hmoPortion,
+            status: 'approved',
+            approvalCode: `AUTH-${policy.provider.slice(0,3).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`,
+            notes: `Adjudicated under member ID ${policy.policyNo}`,
+          };
+
+          const pspAlloc: PayerAllocation = {
+            id: 'pa_' + Date.now() + '_psp',
+            payerType: 'patient_self_pay',
+            payerName: 'Patient Self-Pay (PSP)',
+            allocatedAmount: coPay,
+            paidAmount: depositApplied,
+            status: netDue === 0 ? 'paid' : 'pending',
+            notes: depositApplied > 0 ? `₦${depositApplied.toLocaleString()} applied from pre-service deposit` : undefined,
+          };
+
           return {
             ...b,
             hasSplit: true,
             hmoAmount: hmoPortion,
-            amountDue: coPay,
-            status: coPay === 0 ? 'paid' : 'unpaid',
+            patientSelfPay: coPay,
+            depositApplied,
+            refundCredit,
+            amountDue: netDue,
+            status: netDue === 0 ? 'paid' : 'unpaid',
+            payerAllocations: [hmoAlloc, pspAlloc],
+            reconciliation: {
+              expectedHmo: hmoPortion,
+              receivedHmo: hmoPortion,
+              variance: 0,
+              status: 'reconciled' as const,
+            },
           };
         });
 
         set({ bills: newBills });
       },
+
+      applyDepositToBill: (billId, depositAmount) => {
+        const s = get();
+        const newBills = s.bills.map(b => {
+          if (b.id !== billId) return b;
+          const psp = b.patientSelfPay !== undefined ? b.patientSelfPay : b.amountDue;
+          const depositApplied = Math.min(depositAmount, psp);
+          const refundCredit = Math.max(0, depositAmount - psp);
+          const newDue = Math.max(0, psp - depositApplied);
+
+          return {
+            ...b,
+            depositPaid: depositAmount,
+            depositApplied,
+            refundCredit,
+            amountDue: newDue,
+            status: newDue === 0 ? 'paid' : 'partly_paid',
+          };
+        });
+
+        set({ bills: newBills });
+      },
+
+      fundPspWithHealthSave: (billId, amount) => {
+        const s = get();
+        const bill = s.bills.find(b => b.id === billId);
+        if (!bill || amount <= 0) return;
+        const actualDeduct = Math.min(amount, s.savingsGoal.saved, bill.amountDue);
+        if (actualDeduct <= 0) return;
+
+        const newSaved = s.savingsGoal.saved - actualDeduct;
+        const newDue = Math.max(0, bill.amountDue - actualDeduct);
+
+        const newAlloc: PayerAllocation = {
+          id: 'pa_' + Date.now() + '_hs',
+          payerType: 'patient_self_pay',
+          payerName: 'HealthSave Reserve',
+          allocatedAmount: actualDeduct,
+          paidAmount: actualDeduct,
+          status: 'paid',
+          notes: 'Funded from emergency health reserve',
+        };
+
+        const newBills = s.bills.map(b => {
+          if (b.id !== billId) return b;
+          return {
+            ...b,
+            amountDue: newDue,
+            status: newDue === 0 ? 'paid' : 'partly_paid',
+            payerAllocations: [...(b.payerAllocations || []), newAlloc],
+          };
+        });
+
+        const newTxn: WalletTxn = {
+          id: 'wt_' + Date.now(),
+          personId: s.activePerson,
+          label: `HealthSave: ${bill.facility}`,
+          amount: actualDeduct,
+          date: new Date().toLocaleDateString('en-NG', { day: '2-digit', month: 'short', year: 'numeric' }),
+          sign: -1,
+        };
+
+        set({
+          bills: newBills,
+          savingsGoal: { ...s.savingsGoal, saved: newSaved },
+          walletTxns: [newTxn, ...s.walletTxns],
+        });
+      },
+
+      requestFamilyPay: (billId, sponsorName, amount) => {
+        const s = get();
+        const bill = s.bills.find(b => b.id === billId);
+        if (!bill) return;
+
+        const familyAlloc: PayerAllocation = {
+          id: 'pa_' + Date.now() + '_fam',
+          payerType: 'family_sponsor',
+          payerName: `FamilyPay (${sponsorName})`,
+          allocatedAmount: amount,
+          paidAmount: 0,
+          status: 'pending',
+          notes: `Payment request link sent to ${sponsorName}`,
+        };
+
+        const newBills = s.bills.map(b => {
+          if (b.id !== billId) return b;
+          return {
+            ...b,
+            payerAllocations: [...(b.payerAllocations || []), familyAlloc],
+          };
+        });
+
+        set({ bills: newBills });
+      },
+
+      applyEmployerBenefit: (billId, employerName, amount) => {
+        const s = get();
+        const bill = s.bills.find(b => b.id === billId);
+        if (!bill) return;
+
+        const actualCover = Math.min(amount, bill.amountDue);
+        const empAlloc: PayerAllocation = {
+          id: 'pa_' + Date.now() + '_emp',
+          payerType: 'employer',
+          payerName: `Employer (${employerName})`,
+          allocatedAmount: actualCover,
+          paidAmount: actualCover,
+          status: 'paid',
+          approvalCode: `EMP-${Math.floor(1000 + Math.random() * 9000)}`,
+          notes: 'Corporate healthcare benefit subsidy applied',
+        };
+
+        const newDue = Math.max(0, bill.amountDue - actualCover);
+        const newBills = s.bills.map(b => {
+          if (b.id !== billId) return b;
+          return {
+            ...b,
+            amountDue: newDue,
+            status: newDue === 0 ? 'paid' : 'partly_paid',
+            payerAllocations: [...(b.payerAllocations || []), empAlloc],
+          };
+        });
+
+        set({ bills: newBills });
+      },
+
+      recordHmoRemittance: (billId, receivedAmount) => {
+        const s = get();
+        const newBills = s.bills.map(b => {
+          if (b.id !== billId) return b;
+          const expected = b.hmoAmount || 0;
+          const variance = expected - receivedAmount;
+          return {
+            ...b,
+            reconciliation: {
+              expectedHmo: expected,
+              receivedHmo: receivedAmount,
+              variance,
+              status: variance > 0 ? 'underpaid' as const : 'reconciled' as const,
+            },
+          };
+        });
+
+        set({ bills: newBills });
+      },
+
+      setActiveEpisode: (episodeId) => set({ activeEpisodeId: episodeId }),
 
       submitPreAuth: (preAuth) => {
         const s = get();
@@ -409,6 +652,8 @@ export const useStore = create<AppState>()(
         activeHmoId: state.activeHmoId,
         preAuths: state.preAuths,
         facilities: state.facilities,
+        episodes: state.episodes,
+        activeEpisodeId: state.activeEpisodeId,
         lastSyncTime: state.lastSyncTime,
         hmoShare: state.hmoShare,
         marketing: state.marketing,

@@ -56,6 +56,9 @@ import AddHmoScreen from '../screens/HMO/AddHmoScreen';
 import PreAuthScreen from '../screens/HMO/PreAuthScreen';
 import WelliRecordSyncScreen from '../screens/WelliRecord/WelliRecordSyncScreen';
 import FacilityDirectoryScreen from '../screens/Facilities/FacilityDirectoryScreen';
+import EpisodeTimelineScreen from '../screens/Bills/EpisodeTimelineScreen';
+import HmoReconcileScreen from '../screens/HMO/HmoReconcileScreen';
+
 
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -190,6 +193,8 @@ export default function RootNavigator() {
       <Stack.Screen name="AddDep" component={AddPersonScreen} />
 
       {/* Healthcare & Insurance */}
+      <Stack.Screen name="EpisodeTimeline" component={EpisodeTimelineScreen} />
+      <Stack.Screen name="HmoReconcile" component={HmoReconcileScreen} />
       <Stack.Screen name="Hmo" component={HmoScreen} />
       <Stack.Screen name="AddHmo" component={AddHmoScreen} />
       <Stack.Screen name="PreAuth" component={PreAuthScreen} />

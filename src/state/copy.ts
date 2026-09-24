@@ -1,7 +1,7 @@
 import { NAIRA } from '../utils/helpers';
 
 const en = {
-  tagline: 'Healthcare payments, simplified.',
+  tagline: 'One bill, every payer.',
   welcomeBody: 'Pay hospital bills, manage family health expenses, and track your spending — all in one place.',
   getStarted: 'Get started',
   terms: 'By continuing you agree to our Terms & Privacy Policy',
@@ -159,11 +159,36 @@ const en = {
   healthcareSectionTitle: 'Healthcare & Coverage',
   linkedHospitalsCount: (n: number) => `${n} Hospitals Linked`,
 
+  // -- Dual-Payer & Multi-Payer Model
+  pspTitle: 'Patient Self-Pay (PSP)',
+  pspSubtitle: 'Amount remaining after applicable payer coverage is determined',
+  payerAllocations: 'Payer Allocations',
+  hmoCover: 'HMO Cover',
+  depositApplied: 'Deposit Applied',
+  depositPaid: 'Pre-Service Deposit',
+  refundCredit: 'Refundable / Creditable Balance',
+  prsTitle: 'Patient Responsibility Statement',
+  prsSubtitle: 'Official WelliPay Statement of Care & Payment',
+  findFunding: 'Find Funding',
+  waysToCover: 'Ways to cover your Self-Pay',
+  healthSaveOpt: 'HealthSave Emergency Reserve',
+  familyPayOpt: 'FamilyPay (Authorized Family Member)',
+  employerOpt: 'Employer Healthcare Benefit',
+  donorOpt: 'Community / NGO Funding Support',
+  financeOpt: 'Licensed Medical Installment Partner',
+  partialPayLabel: 'Partial Self-Pay',
+  partialPayHelp: 'Pay what you have now; outstanding balance will be maintained',
+  episodeTimeline: 'Healthcare Episode Timeline',
+  reconcileTitle: 'WelliPay Reconcile™',
+  varianceLabel: 'HMO Variance / Underpayment',
+  reconcileSub: 'Provider settlement & remittance tracking',
+  underpaidNotice: 'HMO Underpayment Identified',
 };
 
 const pcm: typeof en = {
+
   ...en,
-  tagline: 'Hospital bills, e don easy.',
+  tagline: 'One bill, every payer.',
   welcomeBody: 'Pay your hospital bill, manage your family health money, and see how you dey spend — everything dey one place.',
   getStarted: 'Make we start',
   terms: 'As you continue, you don agree to our Terms & Privacy Policy',
@@ -247,6 +272,31 @@ const pcm: typeof en = {
   healthcareSectionTitle: 'Healthcare & Insurance',
   linkedHospitalsCount: (n: number) => `${n} Hospitals Don Connect`,
 
+
+  // -- Dual-Payer & Multi-Payer Model
+  pspTitle: 'Patient Self-Pay (PSP)',
+  pspSubtitle: 'Amount wey you go pay after insurance don pay dem own',
+  payerAllocations: 'Who dey pay wetin',
+  hmoCover: 'Wetin HMO cover',
+  depositApplied: 'Deposit wey you pay before',
+  depositPaid: 'Pre-Service Deposit',
+  refundCredit: 'Money wey remain to credit/refund',
+  prsTitle: 'Patient Responsibility Statement',
+  prsSubtitle: 'Original WelliPay Statement wey break down everything',
+  findFunding: 'Find Funding',
+  waysToCover: 'Different ways to settle your Self-Pay',
+  healthSaveOpt: 'HealthSave Savings balance',
+  familyPayOpt: 'FamilyPay (Family member go pay)',
+  employerOpt: 'Company / Employer benefit',
+  donorOpt: 'Community / NGO Funding help',
+  financeOpt: 'Pay small-small (Finance)',
+  partialPayLabel: 'Pay part now',
+  partialPayHelp: 'Pay wetin you get now, the remaining balance go dey intact',
+  episodeTimeline: 'Medical Episode Timeline',
+  reconcileTitle: 'WelliPay Reconcile™',
+  varianceLabel: 'HMO Variance / Money wey short',
+  reconcileSub: 'Track provider settlement & HMO remittance',
+  underpaidNotice: 'HMO Underpayment dey here',
 };
 
 export type CopyDict = typeof en;

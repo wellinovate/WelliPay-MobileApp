@@ -48,6 +48,9 @@ export type RootStackParamList = {
   AddPerson: undefined;
   AddDep: undefined;
 
+  // Dual-Payer & Healthcare Episodes
+  EpisodeTimeline: { episodeId?: string } | undefined;
+  HmoReconcile: { billId?: string } | undefined;
   // Healthcare & Insurance
   Hmo: undefined;
   AddHmo: undefined;

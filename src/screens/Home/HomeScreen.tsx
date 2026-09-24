@@ -71,17 +71,40 @@ export default function HomeScreen({ navigation }: any) {
           </Card>
         </TouchableOpacity>
 
-        {/* Healthcare & Coverage */}
+        {/* Healthcare & Coverage — Dual-Payer Suite */}
         <Card style={styles.mb}>
-          <Text style={styles.kicker}>HEALTHCARE & COVERAGE</Text>
-          <View style={{flexDirection:'row',gap:spacing.sm,marginTop:spacing.xs}}>
+          <View style={{flexDirection:'row',justifyContent:'space-between',alignItems:'center'}}>
+            <Text style={styles.kicker}>DUAL-PAYER HEALTHCARE SUITE</Text>
+            <Text style={{fontSize:10,fontWeight:'700',color:colors.accentDark}}>One bill, every payer.</Text>
+          </View>
+          <View style={{flexDirection:'row',gap:spacing.sm,marginTop:spacing.sm}}>
             <TouchableOpacity
               style={{flex:1,backgroundColor:colors.accentLight,padding:spacing.md,borderRadius:radius.sm}}
               activeOpacity={0.7}
               onPress={() => navigation.navigate('Hmo')}
             >
               <Text style={{fontSize:fontSize.sm,fontWeight:'700',color:colors.accentDark}}>🛡️ Insurance & HMO</Text>
-              <Text style={{fontSize:fontSize.xs,color:colors.accentMid,marginTop:2}}>Hygeia · 90% Co-Pay</Text>
+              <Text style={{fontSize:fontSize.xs,color:colors.accentMid,marginTop:2}}>Hygeia · Co-Pay Split</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={{flex:1,backgroundColor:'#F0F9FF',padding:spacing.md,borderRadius:radius.sm,borderColor:'#BAE6FD',borderWidth:1}}
+              activeOpacity={0.7}
+              onPress={() => navigation.navigate('EpisodeTimeline')}
+            >
+              <Text style={{fontSize:fontSize.sm,fontWeight:'700',color:'#0284C7'}}>🩺 Episode Timeline</Text>
+              <Text style={{fontSize:fontSize.xs,color:'#0369A1',marginTop:2}}>Consult → Lab → Meds</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={{flexDirection:'row',gap:spacing.sm,marginTop:spacing.sm}}>
+            <TouchableOpacity
+              style={{flex:1,backgroundColor:'#F8FAFC',padding:spacing.md,borderRadius:radius.sm,borderColor:'#E2E8F0',borderWidth:1}}
+              activeOpacity={0.7}
+              onPress={() => navigation.navigate('HmoReconcile')}
+            >
+              <Text style={{fontSize:fontSize.sm,fontWeight:'700',color:colors.textPrimary}}>⚖️ WelliPay Reconcile™</Text>
+              <Text style={{fontSize:fontSize.xs,color:colors.textSecondary,marginTop:2}}>HMO Remittance & Variance</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -89,7 +112,7 @@ export default function HomeScreen({ navigation }: any) {
               activeOpacity={0.7}
               onPress={() => navigation.navigate('FacilityDirectory')}
             >
-              <Text style={{fontSize:fontSize.sm,fontWeight:'700',color:colors.textPrimary}}>🏥 Hospitals</Text>
+              <Text style={{fontSize:fontSize.sm,fontWeight:'700',color:colors.textPrimary}}>🏥 Hospital Ledger</Text>
               <Text style={{fontSize:fontSize.xs,color:colors.textSecondary,marginTop:2}}>6 Linked · Direct Routing</Text>
             </TouchableOpacity>
           </View>

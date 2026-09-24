@@ -3,26 +3,114 @@ import { NAIRA } from '../utils/helpers';
 export interface Person {
   id: string; name: string; relation: string; relationKey: string;
 }
+
 export interface BillLine {
   name: string; qty: number; price: number; total: number; discount?: boolean;
 }
-export interface Bill {
-  id: string; personId: string; facility: string; date: string;
-  billNo: string; status: string; amountDue: number; amountTotal: number;
-  minPart?: number; lines: BillLine[]; changed?: boolean;
-  hasSplit?: boolean; hmoAmount?: number;
+
+export type PayerType =
+  | 'hmo'
+  | 'patient_self_pay'
+  | 'employer'
+  | 'family_sponsor'
+  | 'government'
+  | 'ngo_donor'
+  | 'financing'
+  | 'combination';
+
+export interface PayerAllocation {
+  id: string;
+  payerType: PayerType;
+  payerName: string;
+  allocatedAmount: number;
+  paidAmount: number;
+  status: 'pending' | 'approved' | 'paid' | 'disputed';
+  approvalCode?: string;
+  notes?: string;
 }
+
+export interface HealthcareEpisodeItem {
+  id: string;
+  category: 'Consultation' | 'Laboratory' | 'Medication' | 'Procedure' | 'Ward/Bed';
+  description: string;
+  date: string;
+  totalCost: number;
+  hmoContribution: number;
+  patientSelfPay: number;
+  paid: number;
+  status: 'cleared' | 'partly_paid' | 'unpaid';
+}
+
+export interface HealthcareEpisode {
+  id: string;
+  episodeNo: string;
+  title: string;
+  facility: string;
+  personId: string;
+  startDate: string;
+  endDate?: string;
+  status: 'active' | 'completed';
+  items: HealthcareEpisodeItem[];
+  depositPaid: number;
+  depositApplied: number;
+  refundCredit?: number;
+  totalCost: number;
+  hmoCover: number;
+  patientSelfPay: number;
+  patientPaid: number;
+  patientDue: number;
+  hmoReceivable: {
+    expected: number;
+    received: number;
+    variance: number;
+    status: 'balanced' | 'underpaid' | 'pending';
+  };
+}
+
+export interface Bill {
+  id: string;
+  personId: string;
+  facility: string;
+  date: string;
+  billNo: string;
+  status: string;
+  amountDue: number;
+  amountTotal: number;
+  minPart?: number;
+  lines: BillLine[];
+  changed?: boolean;
+  hasSplit?: boolean;
+  hmoAmount?: number;
+  patientSelfPay?: number; // Confirmed PSP
+  depositPaid?: number; // Pre-service deposit
+  depositApplied?: number; // Deposit applied to confirmed Self-Pay
+  refundCredit?: number; // Credit/refund if deposit > PSP
+  payerAllocations?: PayerAllocation[];
+  episodeId?: string;
+  reconciliation?: {
+    expectedHmo: number;
+    receivedHmo: number;
+    variance: number;
+    status: 'reconciled' | 'underpaid' | 'pending';
+  };
+}
+
 export interface Payment {
   id: string; billId?: string; facility: string; amount: number;
   method: string; date: string; time: string; status: string; personId: string;
+  payerType?: PayerType;
+  fundingSource?: 'card' | 'transfer' | 'ussd' | 'qr' | 'healthsave' | 'familypay' | 'employer' | 'financing';
 }
+
 export interface WalletTxn {
   id: string; personId: string; label: string; amount: number; date: string; sign: number;
 }
+
 export interface FinancingPlan {
   id: string; facility: string; totalInstallments: number;
   paidInstallments: number; perInstallment: number; nextDue: string; billId: string;
 }
+
 export interface HmoPolicy {
   id: string;
   provider: string;
@@ -68,7 +156,6 @@ export interface HospitalFacility {
   activeBillsCount: number;
 }
 
-
 const mkLines = (n: number): BillLine[] => {
   const names = ['Consultation','Lab test — Full blood count','X-ray — Chest',
     'Nursing care','Ward admission (per night)','Dressing and wound care',
@@ -91,23 +178,365 @@ export const PEOPLE_SEED: Person[] = [
 ];
 
 export const BILLS_SEED: Bill[] = [
-  { id:'b1', personId:'self',  facility:'Dovers Hospitals',              date:'21 Sep 2026', billNo:'DH-88213',   status:'unpaid',       amountDue:20000, amountTotal:20000, minPart:5000,  lines:mkLines(23), changed:true },
-  { id:'b2', personId:'self',  facility:'Redeemer Specialist Clinic',    date:'10 Sep 2026', billNo:'RSC-33021',  status:'overdue',      amountDue:8500,  amountTotal:8500,  minPart:2000,  lines:mkLines(4) },
-  { id:'b3', personId:'ade',   facility:'Lagoon Diagnostics Centre',     date:'18 Sep 2026', billNo:'LDC-90211',  status:'partly_paid',  amountDue:6000,  amountTotal:15000, minPart:2000,  lines:mkLines(3) },
-  { id:'b4', personId:'self',  facility:"St. Augustine's Medical Centre",date:'02 Sep 2026', billNo:'SAMC-70142', status:'paid',         amountDue:0,     amountTotal:45000, lines:mkLines(5) },
-  { id:'b5', personId:'faith', facility:'Grace Family Clinic',           date:'28 Aug 2026', billNo:'GFC-10938',  status:'void',         amountDue:0,     amountTotal:12000, lines:mkLines(2) },
-  { id:'b6', personId:'self',  facility:'Sunrise Medical Diagnostics',   date:'20 Sep 2026', billNo:'SMD-55210',  status:'awaiting_hmo', amountDue:20000, amountTotal:45000, hmoAmount:25000, hasSplit:true, minPart:5000, lines:mkLines(6) },
-  { id:'b7', personId:'ade',   facility:'Dovers Hospitals',              date:'10 Sep 2026', billNo:'DH-88401',   status:'unpaid',       amountDue:5000,  amountTotal:5000,  minPart:2000,  lines:mkLines(2) },
-  { id:'b8', personId:'faith', facility:'Grace Family Clinic',           date:'02 Sep 2026', billNo:'GFC-10877',  status:'paid',         amountDue:0,     amountTotal:9000,  lines:mkLines(3) },
-  { id:'b9', personId:'self',  facility:'Redeemer Specialist Clinic',    date:'25 Sep 2026', billNo:'RSC-33199',  status:'unpaid',       amountDue:15000, amountTotal:15000, minPart:5000,  lines:mkLines(4) },
+  {
+    id: 'b1',
+    personId: 'self',
+    facility: 'Dovers Hospitals',
+    date: '21 Sep 2026',
+    billNo: 'DH-88213',
+    status: 'unpaid',
+    amountDue: 20000,
+    amountTotal: 100000,
+    hmoAmount: 80000,
+    patientSelfPay: 20000,
+    hasSplit: true,
+    minPart: 5000,
+    lines: mkLines(23),
+    changed: true,
+    episodeId: 'ep1',
+    depositPaid: 0,
+    depositApplied: 0,
+    payerAllocations: [
+      {
+        id: 'pa1',
+        payerType: 'hmo',
+        payerName: 'Hygeia HMO (Comprehensive Tier)',
+        allocatedAmount: 80000,
+        paidAmount: 75000,
+        status: 'approved',
+        approvalCode: 'AUTH-HYG-8821',
+        notes: 'Covers 80% based on accredited hospital tariff schedule',
+      },
+      {
+        id: 'pa2',
+        payerType: 'patient_self_pay',
+        payerName: 'Patient Self-Pay (PSP)',
+        allocatedAmount: 20000,
+        paidAmount: 0,
+        status: 'pending',
+        notes: 'Remaining 20% patient co-responsibility',
+      },
+    ],
+    reconciliation: {
+      expectedHmo: 80000,
+      receivedHmo: 75000,
+      variance: 5000,
+      status: 'underpaid',
+    },
+  },
+  {
+    id: 'b2',
+    personId: 'self',
+    facility: 'Redeemer Specialist Clinic',
+    date: '10 Sep 2026',
+    billNo: 'RSC-33021',
+    status: 'overdue',
+    amountDue: 10000,
+    amountTotal: 40000,
+    hmoAmount: 30000,
+    patientSelfPay: 10000,
+    hasSplit: true,
+    minPart: 2000,
+    lines: mkLines(4),
+    payerAllocations: [
+      {
+        id: 'pa5',
+        payerType: 'hmo',
+        payerName: 'Reliance HMO (Classic Care)',
+        allocatedAmount: 30000,
+        paidAmount: 30000,
+        status: 'approved',
+        approvalCode: 'AUTH-REL-3302',
+      },
+      {
+        id: 'pa6',
+        payerType: 'patient_self_pay',
+        payerName: 'Patient Self-Pay (PSP)',
+        allocatedAmount: 10000,
+        paidAmount: 0,
+        status: 'pending',
+      },
+    ],
+  },
+  {
+    id: 'b3',
+    personId: 'ade',
+    facility: 'Lagoon Diagnostics Centre',
+    date: '18 Sep 2026',
+    billNo: 'LDC-90211',
+    status: 'partly_paid',
+    amountDue: 6000,
+    amountTotal: 15000,
+    hmoAmount: 0,
+    patientSelfPay: 15000,
+    minPart: 2000,
+    lines: mkLines(3),
+    payerAllocations: [
+      {
+        id: 'pa7',
+        payerType: 'patient_self_pay',
+        payerName: 'Patient Self-Pay (PSP)',
+        allocatedAmount: 15000,
+        paidAmount: 9000,
+        status: 'pending',
+      },
+    ],
+  },
+  {
+    id: 'b4',
+    personId: 'self',
+    facility: "St. Augustine's Medical Centre",
+    date: '02 Sep 2026',
+    billNo: 'SAMC-70142',
+    status: 'paid',
+    amountDue: 0,
+    amountTotal: 45000,
+    hmoAmount: 35000,
+    patientSelfPay: 10000,
+    hasSplit: true,
+    lines: mkLines(5),
+    payerAllocations: [
+      {
+        id: 'pa8',
+        payerType: 'hmo',
+        payerName: 'Hygeia HMO',
+        allocatedAmount: 35000,
+        paidAmount: 35000,
+        status: 'paid',
+        approvalCode: 'AUTH-HYG-7014',
+      },
+      {
+        id: 'pa9',
+        payerType: 'patient_self_pay',
+        payerName: 'Patient Self-Pay (PSP)',
+        allocatedAmount: 10000,
+        paidAmount: 10000,
+        status: 'paid',
+      },
+    ],
+    reconciliation: {
+      expectedHmo: 35000,
+      receivedHmo: 35000,
+      variance: 0,
+      status: 'reconciled',
+    },
+  },
+  {
+    id: 'b5',
+    personId: 'faith',
+    facility: 'Grace Family Clinic',
+    date: '28 Aug 2026',
+    billNo: 'GFC-10938',
+    status: 'void',
+    amountDue: 0,
+    amountTotal: 12000,
+    lines: mkLines(2),
+  },
+  {
+    id: 'b6',
+    personId: 'self',
+    facility: 'Sunrise Medical Diagnostics',
+    date: '20 Sep 2026',
+    billNo: 'SMD-55210',
+    status: 'awaiting_hmo',
+    amountDue: 8000,
+    amountTotal: 75000,
+    hmoAmount: 55000,
+    patientSelfPay: 20000,
+    depositPaid: 5000,
+    depositApplied: 5000,
+    hasSplit: true,
+    minPart: 5000,
+    lines: mkLines(6),
+    episodeId: 'ep1',
+    payerAllocations: [
+      {
+        id: 'pa10',
+        payerType: 'hmo',
+        payerName: 'Reliance HMO (Primary)',
+        allocatedAmount: 55000,
+        paidAmount: 55000,
+        status: 'approved',
+        approvalCode: 'AUTH-REL-5521',
+      },
+      {
+        id: 'pa11',
+        payerType: 'patient_self_pay',
+        payerName: 'Patient Self-Pay (Deposit ₦5k + Paid ₦7k + Due ₦8k)',
+        allocatedAmount: 20000,
+        paidAmount: 12000,
+        status: 'pending',
+      },
+    ],
+    reconciliation: {
+      expectedHmo: 55000,
+      receivedHmo: 55000,
+      variance: 0,
+      status: 'reconciled',
+    },
+  },
+  {
+    id: 'b7',
+    personId: 'ade',
+    facility: 'Dovers Hospitals',
+    date: '10 Sep 2026',
+    billNo: 'DH-88401',
+    status: 'unpaid',
+    amountDue: 5000,
+    amountTotal: 5000,
+    minPart: 2000,
+    lines: mkLines(2),
+  },
+  {
+    id: 'b8',
+    personId: 'faith',
+    facility: 'Grace Family Clinic',
+    date: '02 Sep 2026',
+    billNo: 'GFC-10877',
+    status: 'paid',
+    amountDue: 0,
+    amountTotal: 9000,
+    lines: mkLines(3),
+  },
+  {
+    id: 'b9',
+    personId: 'self',
+    facility: 'Redeemer Specialist Clinic',
+    date: '25 Sep 2026',
+    billNo: 'RSC-33199',
+    status: 'unpaid',
+    amountDue: 15000,
+    amountTotal: 15000,
+    minPart: 5000,
+    lines: mkLines(4),
+  },
+];
+
+export const EPISODES_SEED: HealthcareEpisode[] = [
+  {
+    id: 'ep1',
+    episodeNo: 'EP-2026-088',
+    title: 'Acute Malaria & Enteric Fever (Typhoid) Episode',
+    facility: 'Dovers Hospitals',
+    personId: 'self',
+    startDate: '19 Sep 2026',
+    status: 'active',
+    items: [
+      {
+        id: 'epi1',
+        category: 'Consultation',
+        description: 'Initial Specialist Physician Consultation & Vitals',
+        date: '19 Sep 2026',
+        totalCost: 15000,
+        hmoContribution: 10000,
+        patientSelfPay: 5000,
+        paid: 5000,
+        status: 'cleared',
+      },
+      {
+        id: 'epi2',
+        category: 'Laboratory',
+        description: 'Comprehensive Blood Panel (FBC, Widal, Malaria Pf parasite density)',
+        date: '20 Sep 2026',
+        totalCost: 40000,
+        hmoContribution: 30000,
+        patientSelfPay: 10000,
+        paid: 7000,
+        status: 'partly_paid',
+      },
+      {
+        id: 'epi3',
+        category: 'Medication',
+        description: 'Artesunate IV injections, Oral Ciprofloxacin & Supportive Electrolytes',
+        date: '21 Sep 2026',
+        totalCost: 20000,
+        hmoContribution: 15000,
+        patientSelfPay: 5000,
+        paid: 0,
+        status: 'unpaid',
+      },
+    ],
+    depositPaid: 0,
+    depositApplied: 0,
+    totalCost: 75000,
+    hmoCover: 55000,
+    patientSelfPay: 20000,
+    patientPaid: 12000,
+    patientDue: 8000,
+    hmoReceivable: {
+      expected: 55000,
+      received: 50000,
+      variance: 5000,
+      status: 'underpaid',
+    },
+  },
+  {
+    id: 'ep2',
+    episodeNo: 'EP-2026-094',
+    title: 'Diagnostic Laparoscopy & Short-Stay Observation',
+    facility: 'Sunrise Medical Diagnostics',
+    personId: 'self',
+    startDate: '14 Sep 2026',
+    endDate: '16 Sep 2026',
+    status: 'completed',
+    items: [
+      {
+        id: 'epi4',
+        category: 'Consultation',
+        description: 'Pre-operative Anesthetic Review & Consent',
+        date: '14 Sep 2026',
+        totalCost: 20000,
+        hmoContribution: 16000,
+        patientSelfPay: 4000,
+        paid: 4000,
+        status: 'cleared',
+      },
+      {
+        id: 'epi5',
+        category: 'Procedure',
+        description: 'Diagnostic Laparoscopic Imaging & Biopsy',
+        date: '15 Sep 2026',
+        totalCost: 45000,
+        hmoContribution: 35000,
+        patientSelfPay: 10000,
+        paid: 10000,
+        status: 'cleared',
+      },
+      {
+        id: 'epi6',
+        category: 'Ward/Bed',
+        description: 'Day-Stay Inpatient Observation & Nursing Support',
+        date: '16 Sep 2026',
+        totalCost: 35000,
+        hmoContribution: 29000,
+        patientSelfPay: 6000,
+        paid: 6000,
+        status: 'cleared',
+      },
+    ],
+    depositPaid: 25000,
+    depositApplied: 20000,
+    refundCredit: 5000,
+    totalCost: 100000,
+    hmoCover: 80000,
+    patientSelfPay: 20000,
+    patientPaid: 20000,
+    patientDue: 0,
+    hmoReceivable: {
+      expected: 80000,
+      received: 80000,
+      variance: 0,
+      status: 'balanced',
+    },
+  },
 ];
 
 export const PAYMENTS_SEED: Payment[] = [
-  { id:'WP512340', billId:'b4', facility:"St. Augustine's Medical Centre", amount:45000, method:'card',     date:'02 Sep 2026', time:'11:20 am', status:'successful', personId:'self' },
-  { id:'WP512298', billId:'b8', facility:'Grace Family Clinic',            amount:9000,  method:'transfer', date:'02 Sep 2026', time:'3:05 pm',  status:'successful', personId:'faith' },
-  { id:'WP511870', billId:'b5', facility:'Grace Family Clinic',            amount:0,     method:'card',     date:'28 Aug 2026', time:'9:00 am',  status:'failed',     personId:'faith' },
-  { id:'WP511500', billId:'b3', facility:'Lagoon Diagnostics Centre',      amount:9000,  method:'transfer', date:'18 Sep 2026', time:'1:15 pm',  status:'successful', personId:'ade' },
-  { id:'WP508110', billId:'b1', facility:'Dovers Hospitals',               amount:12000, method:'card',     date:'10 Jun 2026', time:'10:00 am', status:'successful', personId:'self' },
+  { id:'WP512340', billId:'b4', facility:"St. Augustine's Medical Centre", amount:45000, method:'card',     date:'02 Sep 2026', time:'11:20 am', status:'successful', personId:'self', payerType:'patient_self_pay' },
+  { id:'WP512298', billId:'b8', facility:'Grace Family Clinic',            amount:9000,  method:'transfer', date:'02 Sep 2026', time:'3:05 pm',  status:'successful', personId:'faith', payerType:'patient_self_pay' },
+  { id:'WP511870', billId:'b5', facility:'Grace Family Clinic',            amount:0,     method:'card',     date:'28 Aug 2026', time:'9:00 am',  status:'failed',     personId:'faith', payerType:'patient_self_pay' },
+  { id:'WP511500', billId:'b3', facility:'Lagoon Diagnostics Centre',      amount:9000,  method:'transfer', date:'18 Sep 2026', time:'1:15 pm',  status:'successful', personId:'ade', payerType:'patient_self_pay' },
+  { id:'WP508110', billId:'b1', facility:'Dovers Hospitals',               amount:12000, method:'card',     date:'10 Jun 2026', time:'10:00 am', status:'successful', personId:'self', payerType:'patient_self_pay' },
 ];
 
 export const WALLETS_SEED: Record<string,number> = { self:15000, ade:0, faith:0 };
@@ -116,7 +545,7 @@ export const WALLET_TXNS_SEED: WalletTxn[] = [
   { id:'wt1', personId:'self', label:'Top up', amount:15000, date:'15 Sep 2026', sign:1 },
 ];
 
-export const SAVINGS_SEED = { name:'Surgery fund', target:100000, saved:32000 };
+export const SAVINGS_SEED = { name:'HealthSave emergency reserve', target:100000, saved:32000 };
 
 export const FINANCING_SEED: FinancingPlan[] = [
   { id:'fp1', facility:'Dovers Hospitals', totalInstallments:4, paidInstallments:1, perInstallment:10000, nextDue:'15 Oct 2026', billId:'b1' },
@@ -129,59 +558,58 @@ export const SPEND_DATA: Record<string,Array<{month:string;amount:number}>> = {
 };
 
 export const NOTIFS_SEED = [
-  { id:'n1', title:'New bill from Dovers Hospitals', body:'₦20,000 — Bill no. DH-88213', time:'2 hours ago', icon:'📄', billId:'b1', unread:true },
+  { id:'n1', title:'HMO Benefit Adjudicated', body:'Hygeia HMO approved ₦80,000. Patient Self-Pay: ₦20,000.', time:'2 hours ago', icon:'🛡️', billId:'b1', unread:true },
   { id:'n2', title:'Payment confirmed', body:"₦45,000 paid to St. Augustine's", time:'3 days ago', icon:'✓', unread:true },
-  { id:'n3', title:'Bill overdue', body:'Redeemer Specialist Clinic — ₦8,500', time:'5 days ago', icon:'⚠', billId:'b2', unread:false },
-  { id:'n4', title:'Auto-pay ran', body:'₦5,000 deducted from wallet', time:'1 week ago', icon:'₦', unread:false },
+  { id:'n3', title:'Bill overdue', body:'Redeemer Specialist Clinic — ₦10,000 Self-Pay due', time:'5 days ago', icon:'⚠', billId:'b2', unread:false },
+  { id:'n4', title:'Auto-pay ran', body:'₦5,000 deducted from HealthSave', time:'1 week ago', icon:'₦', unread:false },
 ];
 
 export const FAQS = [
-  { q:'How do I add a bill?', a:'Tap "Add a bill" on the Home screen. Scan the QR code or enter the bill code manually.' },
-  { q:'Which payment methods are supported?', a:'WelliPay wallet, debit/credit card (Visa, Mastercard, Verve), or bank transfer.' },
-  { q:'How does the wallet work?', a:'Top up once, then pay bills instantly without entering card details each time.' },
-  { q:'Can I pay for a family member?', a:'Yes — add dependants under People and switch to their profile to see and pay their bills.' },
-  { q:'What is WelliRecord?', a:'WelliRecord links your hospital record so bills appear automatically when facilities raise them.' },
+  { q:'What is Patient Self-Pay (PSP)?', a:'PSP is the exact portion of your healthcare bill that remains your responsibility after your HMO or other primary payers have paid their approved tariff contribution.' },
+  { q:'How does the Dual-Payer model work?', a:'Your HMO processes your healthcare claim first based on your benefit schedule. WelliPay then presents your confirmed Patient Self-Pay balance with transparent options to pay now, split across HealthSave, or request family/employer support.' },
+  { q:'What is the difference between a Deposit and Self-Pay?', a:'A deposit is money paid upfront before your final bill is known. Confirmed Self-Pay is calculated after your services and HMO coverage are verified. Your deposit is automatically applied to reduce your Self-Pay, and any excess is creditable or refundable.' },
+  { q:'What is WelliPay Reconcile™?', a:'It tracks hospital settlements and identifies variances or underpayments between expected HMO remitted amounts and what was actually received.' },
 ];
 
 export const HMO_SEED: HmoPolicy[] = [
   {
     id: 'hmo1',
     provider: 'Hygeia HMO',
-    policyNo: 'HYG-884021-01',
+    policyNo: 'HYG-882910-A',
     enrolleeName: 'Jay Umar',
-    planTier: 'Silver Comprehensive',
-    coPayPercent: 10,
-    annualLimit: 1500000,
-    usedAmount: 420000,
+    planTier: 'Comprehensive Gold',
+    coPayPercent: 20,
+    annualLimit: 2500000,
+    usedAmount: 480000,
     status: 'active',
     expiryDate: '31 Dec 2026',
-    coveredPersons: ['self', 'ade', 'faith'],
+    coveredPersons: ['self', 'ade'],
   },
   {
     id: 'hmo2',
     provider: 'Reliance HMO',
-    policyNo: 'REL-904122-B',
+    policyNo: 'REL-440219-B',
     enrolleeName: 'Jay Umar',
-    planTier: 'Family Comfort',
-    coPayPercent: 0,
-    annualLimit: 850000,
-    usedAmount: 190000,
+    planTier: 'Executive Corporate Plan',
+    coPayPercent: 10,
+    annualLimit: 5000000,
+    usedAmount: 1120000,
     status: 'active',
-    expiryDate: '15 Nov 2026',
-    coveredPersons: ['self', 'ade'],
+    expiryDate: '30 Jun 2027',
+    coveredPersons: ['self', 'faith', 'ade'],
   },
   {
     id: 'hmo3',
-    provider: 'AXA Mansard Health',
-    policyNo: 'AXA-110294-M',
+    provider: 'AXA Mansard',
+    policyNo: 'AXA-992104-C',
     enrolleeName: 'Faith Oghene',
-    planTier: 'Gold Executive',
+    planTier: 'Platinum Family Cover',
     coPayPercent: 15,
     annualLimit: 3000000,
-    usedAmount: 680000,
+    usedAmount: 250000,
     status: 'active',
-    expiryDate: '30 Sep 2026',
-    coveredPersons: ['faith'],
+    expiryDate: '15 Nov 2026',
+    coveredPersons: ['faith', 'ade'],
   },
 ];
 
@@ -190,14 +618,14 @@ export const PREAUTH_SEED: PreAuthRequest[] = [
     id: 'pa1',
     hmoPolicyId: 'hmo1',
     facility: 'Dovers Hospitals',
-    procedure: 'Endoscopic Sinus Procedure',
-    estimatedCost: 320000,
-    coveredAmount: 288000,
-    patientPortion: 32000,
+    procedure: 'Elective Herniorrhaphy Surgery',
+    estimatedCost: 350000,
+    coveredAmount: 280000,
+    patientPortion: 70000,
     status: 'approved',
-    requestDate: '19 Sep 2026',
-    approvalCode: 'AUTH-HYG-7701',
-    notes: 'Approved under ENT Specialist coverage with 10% patient co-pay.',
+    requestDate: '20 Sep 2026',
+    approvalCode: 'AUTH-HYG-9021',
+    notes: 'Pre-auth approved for surgeon fee, anesthesia, and 2-night semi-private ward admission.',
   },
   {
     id: 'pa2',
