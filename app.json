@@ -12,7 +12,8 @@
       "infoPlist": {
         "NSCameraUsageDescription": "Allow WelliPay to access your camera to scan hospital bills and QR codes.",
         "NSFaceIDUsageDescription": "Allow WelliPay to use Face ID for fast and secure account unlock and payment authorization."
-      }
+      },
+      "buildNumber": "1"
     },
     "android": {
       "adaptiveIcon": {
@@ -26,8 +27,13 @@
       "permissions": [
         "CAMERA",
         "USE_BIOMETRIC",
-        "USE_FINGERPRINT"
-      ]
+        "USE_FINGERPRINT",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.USE_FINGERPRINT"
+      ],
+      "versionCode": 1
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -52,6 +58,13 @@
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#FAFAF8"
-    }
+    },
+    "scheme": "wellipay",
+    "extra": {
+      "eas": {
+        "projectId": "86c77d15-2b7c-46e9-afbe-9cba73c4939e"
+      }
+    },
+    "owner": "talk2jaywin"
   }
 }
