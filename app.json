@@ -7,7 +7,12 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "ng.wellipay.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Allow WelliPay to access your camera to scan hospital bills and QR codes.",
+        "NSFaceIDUsageDescription": "Allow WelliPay to use Face ID for fast and secure account unlock and payment authorization."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -16,10 +21,32 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "ng.wellipay.app",
+      "permissions": [
+        "CAMERA",
+        "USE_BIOMETRIC",
+        "USE_FINGERPRINT"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow WelliPay to access your camera to scan hospital bills and QR codes."
+        }
+      ],
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Allow WelliPay to use Face ID for fast and secure account unlock and payment authorization."
+        }
+      ],
+      "expo-sharing",
+      "expo-secure-store"
+    ]
   }
 }
