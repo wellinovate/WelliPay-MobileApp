@@ -49,22 +49,22 @@ export default function AddBillScreen({ navigation }: any) {
       return;
     }
 
+    const dateStr = new Date().toLocaleDateString('en-NG', { day: '2-digit', month: 'short', year: 'numeric' });
     const newBill: Bill = {
       id: 'b_' + Date.now(),
       billNo: clean,
       facility: clean.includes('DH') ? 'Doma Hospital, Lagos' : (clean.includes('LUTH') ? 'LUTH, Idi-Araba' : 'St. Nicholas Hospital, Lagos'),
       personId: store.activePerson,
-      dateIssued: new Date().toLocaleDateString('en-NG', { day: '2-digit', month: 'short', year: 'numeric' }),
-      dueDate: new Date(Date.now() + 14 * 86400000).toLocaleDateString('en-NG', { day: '2-digit', month: 'short', year: 'numeric' }),
+      date: dateStr,
       amountTotal: 34500,
       amountDue: 34500,
+      minPart: 5000,
       status: 'unpaid',
       lines: [
-        { desc: 'Consultation & Clinical Assessment', amount: 12000 },
-        { desc: 'Diagnostic Lab Tests (FBC, Malaria Pf)', amount: 15500 },
-        { desc: 'Prescription Medication Dispensation', amount: 7000 },
+        { name: 'Consultation & Clinical Assessment', qty: 1, price: 12000, total: 12000 },
+        { name: 'Diagnostic Lab Tests (FBC, Malaria Pf)', qty: 1, price: 15500, total: 15500 },
+        { name: 'Prescription Medication Dispensation', qty: 1, price: 7000, total: 7000 },
       ],
-      qrCodeData: clean,
     };
     store.addBill(newBill);
 
