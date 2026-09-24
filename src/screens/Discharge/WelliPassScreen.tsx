@@ -6,7 +6,9 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
-  Share, Platform } from 'react-native';
+  Share,
+  Platform,
+  Linking } from 'react-native';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as Haptics from 'expo-haptics';
@@ -15,7 +17,7 @@ import { useStore } from '../../state/store';
 import { COPY } from '../../state/copy';
 import { colors, spacing, radius, shadow } from '../../theme/tokens';
 import { NAIRA } from '../../utils/helpers';
-import { Button, Card, ScreenHeader, ProgressBar, Divider, Chip } from '../../components';
+import { Button, Card, ScreenHeader, ProgressBar, Divider, Chip, QRCodeView } from '../../components';
 
 
 
@@ -65,6 +67,29 @@ export const WelliPassScreen: React.FC = () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setGuardVerified(true);
     Alert.alert('Gate Exit Verified ✓', 'WelliPass ' + activePass.gatePassCode + ' scanned and cleared by Hospital Security. Patient is authorized to exit the facility.');
+  };
+
+  const handleShareWhatsApp = async () => {
+    Haptics.selectionAsync();
+    const text = '🏥 *WELLIPASS DISCHARGE CLEARANCE*\n\n' +
+      '*Patient:* ' + activePass.patientName + '\n' +
+      '*Hospital:* ' + activePass.hospitalName + '\n' +
+      '*Ward:* ' + activePass.ward + '\n' +
+      '*Gate Pass Code:* ' + activePass.gatePassCode + '\n' +
+      '*Status:* 100% CLEARED (Doctor, Pharmacy, HMO, Cashier PSP Reconciled)\n\n' +
+      'Verify Pass: https://wellipay.ng/pass/verify?code=' + activePass.gatePassCode;
+
+    const waUrl = 'whatsapp://send?text=' + encodeURIComponent(text);
+    try {
+      const can = await Linking.canOpenURL(waUrl);
+      if (can) {
+        await Linking.openURL(waUrl);
+      } else {
+        await Share.share({ message: text });
+      }
+    } catch {
+      await Share.share({ message: text });
+    }
   };
 
   const handleSharePass = async () => {
@@ -262,10 +287,16 @@ export const WelliPassScreen: React.FC = () => {
 
         {/* Share Action */}
         <Button
+          label="Send WhatsApp Clearance Note"
+          variant="primary"
+          onPress={handleShareWhatsApp}
+          style={{ marginTop: spacing.md }}
+        />
+        <Button
           label="Share Official Discharge Pass"
           variant="secondary"
           onPress={handleSharePass}
-          style={{ marginVertical: spacing.md }}
+          style={{ marginVertical: spacing.xs }}
         />
       </ScrollView>
     </View>
@@ -349,4 +380,39 @@ const styles = StyleSheet.create({
   pspBreakdownVal: { fontSize: 12, fontWeight: '600', color: colors.textPrimary },
   emptyWrap: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: spacing.xl },
   emptyText: { fontSize: 14, color: colors.textTertiary, marginBottom: spacing.md },
+  notifStatusBox: {
+    backgroundColor: '#F0F9FF',
+    borderColor: '#BAE6FD',
+    borderWidth: 1,
+    borderRadius: radius.sm,
+    padding: spacing.sm,
+    marginTop: spacing.sm,
+    width: '100%',
+  },
+  notifStatusTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#0369A1',
+    marginBottom: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  notifRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 2,
+  },
+  notifIcon: {
+    fontSize: 12,
+  },
+  notifText: {
+    fontSize: 10,
+    color: colors.textSecondary,
+    flex: 1,
+  },
+  greenText: {
+    color: '#059669',
+    fontWeight: '700',
+  },
 });

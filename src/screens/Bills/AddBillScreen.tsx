@@ -5,6 +5,7 @@ import { ScreenHeader, Button, Banner } from '../../components';
 import { colors, fontSize, spacing, radius } from '../../theme/tokens';
 import { useStore } from '../../state/store';
 import { Bill } from '../../state/seed';
+import { ProviderInvoiceModal, ProviderInvoiceData } from './ProviderInvoiceModal';
 import { COPY } from '../../state/copy';
 import { hapticSuccess, hapticError } from '../../utils/haptics';
 
@@ -20,10 +21,84 @@ export default function AddBillScreen({ navigation }: any) {
   const [err, setErr] = useState('');
   const [success, setSuccess] = useState(false);
   const [scanned, setScanned] = useState(false);
+  const [invoiceModalVisible, setInvoiceModalVisible] = useState(false);
+  const [scannedInvoice, setScannedInvoice] = useState<ProviderInvoiceData | null>(null);
+
+  const handleOpenProviderInvoice = (mode: 'outstanding' | 'cleared') => {
+    hapticSuccess();
+    setScanned(true);
+    const invoice: ProviderInvoiceData = {
+      invoiceNo: mode === 'outstanding' ? 'INV-2026-LGH-8821' : 'INV-2026-LGH-9904',
+      facility: 'Lagoon Hospital Ikoyi',
+      cashierDesk: 'Cashier Unit 3 (Ground Floor, Wing B)',
+      patientName: 'Amina Bello',
+      patientPhone: '+234 803 123 4567',
+      patientEmail: 'amina.bello@gmail.com',
+      providerWhatsApp: '+234 809 999 8822',
+      providerEmail: 'billing@lagoonhospitals.com',
+      customerCarePhone: '+234 1 271 2345',
+      date: '24 Sep 2026',
+      totalCharges: 100000,
+      hmoCovered: mode === 'outstanding' ? 80000 : 100000,
+      hmoProvider: 'Hygeia HMO',
+      depositApplied: 0,
+      patientSelfPay: mode === 'outstanding' ? 20000 : 0,
+      status: mode === 'outstanding' ? 'outstanding' : 'cleared',
+      gatePassCode: 'WP-PASS-LAG-2026-8812',
+      items: [
+        { description: 'Inpatient Room & Board (Ward 3)', amount: 45000 },
+        { description: 'Attending Physician & Ward Rounds', amount: 20000 },
+        { description: 'Prescription Infusions & Antibiotics', amount: 25000 },
+        { description: 'Pathology Diagnostics & Electrolytes', amount: 10000 },
+      ],
+    };
+    setScannedInvoice(invoice);
+    setInvoiceModalVisible(true);
+  };
 
   const processBillCode = (rawCode: string) => {
+    // Check if QR code is a WelliPay Provider Invoice payload
+    if (rawCode.includes('wellipay_provider_invoice') || rawCode.includes('INV-') || rawCode.includes('provider')) {
+      try {
+        if (rawCode.startsWith('{')) {
+          const parsed = JSON.parse(rawCode);
+          const invoice: ProviderInvoiceData = {
+            invoiceNo: parsed.invoiceNo || 'INV-2026-LGH-8821',
+            facility: parsed.facility || 'Lagoon Hospital Ikoyi',
+            cashierDesk: parsed.cashierDesk || 'Cashier Unit 3 (Ground Floor, Wing B)',
+            patientName: parsed.patientName || 'Amina Bello',
+            patientPhone: parsed.patientPhone || '+234 803 123 4567',
+            patientEmail: parsed.patientEmail || 'amina.bello@gmail.com',
+            providerWhatsApp: parsed.providerWhatsApp || '+234 809 999 8822',
+            providerEmail: parsed.providerEmail || 'billing@lagoonhospitals.com',
+            customerCarePhone: parsed.customerCarePhone || '+234 1 271 2345',
+            date: parsed.date || '24 Sep 2026',
+            totalCharges: parsed.totalCharges || 100000,
+            hmoCovered: parsed.hmoCovered || 80000,
+            hmoProvider: parsed.hmoProvider || 'Hygeia HMO',
+            depositApplied: parsed.depositApplied || 0,
+            patientSelfPay: parsed.patientSelfPay !== undefined ? parsed.patientSelfPay : 20000,
+            status: (parsed.patientSelfPay === 0) ? 'cleared' : 'outstanding',
+            gatePassCode: parsed.gatePassCode || 'WP-PASS-LAG-2026-8812',
+            items: parsed.items || [
+              { description: 'Inpatient Clinical Care (Ward 3)', amount: 45000 },
+              { description: 'Attending Physician & Ward Rounds', amount: 20000 },
+              { description: 'Prescription Infusions & Antibiotics', amount: 25000 },
+              { description: 'Pathology Diagnostics & Electrolytes', amount: 10000 },
+            ],
+          };
+          hapticSuccess();
+          setScannedInvoice(invoice);
+          setInvoiceModalVisible(true);
+          setScanned(false);
+          return;
+        }
+      } catch (e) {
+        // fallback
+      }
+    }
+
     let clean = rawCode.trim().toUpperCase();
-    // Support JSON QR payloads like {"billNo":"DH-88213"}
     if (clean.startsWith('{')) {
       try {
         const parsed = JSON.parse(clean);
@@ -134,6 +209,30 @@ export default function AddBillScreen({ navigation }: any) {
 
               <Text style={styles.scanHelpText}>{t.scanFrameHelp}</Text>
 
+              {/* Provider QR Scanner Test Actions */}
+              <View style={styles.providerDemoBox}>
+                <Text style={styles.providerDemoHeading}>Simulate Provider QR Scan:</Text>
+                <TouchableOpacity
+                  style={[styles.providerDemoBtn, { backgroundColor: '#FEF3C7', borderColor: '#F59E0B' }]}
+                  onPress={() => handleOpenProviderInvoice('outstanding')}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.providerDemoBtnText, { color: '#92400E' }]}>
+                    🚨 Scan Provider QR (Outstanding ₦20,000 Balance)
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.providerDemoBtn, { backgroundColor: '#DCFCE7', borderColor: '#10B981' }]}
+                  onPress={() => handleOpenProviderInvoice('cleared')}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.providerDemoBtnText, { color: '#065F46' }]}>
+                    🟢 Scan Provider QR (100% HMO Covered / ₦0 Due)
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
               <TouchableOpacity
                 onPress={() => setMode('manual')}
                 style={styles.switchLink}
@@ -199,6 +298,18 @@ export default function AddBillScreen({ navigation }: any) {
           <Button label={t.continue} onPress={() => processBillCode(code)} fullWidth />
         </View>
       )}
+      {/* Provider Invoice & Clearance Modal */}
+      <ProviderInvoiceModal
+        visible={invoiceModalVisible}
+        onClose={() => {
+          setInvoiceModalVisible(false);
+          setScanned(false);
+        }}
+        invoiceData={scannedInvoice}
+        onViewWelliPass={(gateCode) => {
+          navigation.navigate('WelliPass', { passId: 'wp1' });
+        }}
+      />
     </View>
   );
 }
@@ -297,4 +408,31 @@ const styles = StyleSheet.create({
   successText: { fontSize: fontSize.xxl, fontWeight: '700', color: colors.textPrimary },
   successSub: { fontSize: fontSize.sm, color: colors.textSecondary, marginTop: 4 },
   footer: { padding: spacing.lg, borderTopWidth: 1, borderTopColor: colors.border },
+  providerDemoBox: {
+    width: '100%',
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: radius.md,
+    padding: spacing.sm,
+    marginTop: spacing.sm,
+  },
+  providerDemoHeading: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.brandNavy,
+    marginBottom: spacing.xs,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  providerDemoBtn: {
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    marginBottom: 6,
+    alignItems: 'center',
+  },
+  providerDemoBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
 });

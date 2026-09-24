@@ -16,7 +16,7 @@ import { useStore } from '../../state/store';
 import { COPY } from '../../state/copy';
 import { colors, spacing, radius, shadow } from '../../theme/tokens';
 import { NAIRA } from '../../utils/helpers';
-import { Button, Card, ScreenHeader, ProgressBar, Divider, Chip } from '../../components';
+import { Button, Card, ScreenHeader, ProgressBar, Divider, Chip, QRCodeView } from '../../components';
 
 
 
@@ -34,6 +34,8 @@ export const ProviderDeskScreen: React.FC = () => {
   const [newService, setNewService] = useState('');
   const [newAmount, setNewAmount] = useState('');
   const [newHmo, setNewHmo] = useState('Hygeia HMO');
+  const [qrModalVisible, setQrModalVisible] = useState(false);
+  const [selectedEncounter, setSelectedEncounter] = useState<any>(null);
 
   const handleGenerateBill = () => {
     const amt = parseFloat(newAmount.replace(/[^0-9.]/g, ''));
@@ -49,6 +51,12 @@ export const ProviderDeskScreen: React.FC = () => {
     setNewService('');
     setNewAmount('');
     Alert.alert('Bill Generated ✓', 'Bill code ' + code + ' created for ' + newPatient + '. Patient can scan or enter this code in WelliPay.');
+  };
+
+  const handleShowCheckoutQr = (encounter: any) => {
+    Haptics.selectionAsync();
+    setSelectedEncounter(encounter);
+    setQrModalVisible(true);
   };
 
   const handleAdjudicate = (itemId: string, total: number) => {
@@ -172,6 +180,12 @@ export const ProviderDeskScreen: React.FC = () => {
                   style={{ marginTop: spacing.sm }}
                 />
               )}
+              <Button
+                label="Show Patient Checkout QR"
+                variant="secondary"
+                onPress={() => handleShowCheckoutQr(item)}
+                style={{ marginTop: spacing.xs }}
+              />
             </Card>
           );
         })}
@@ -340,4 +354,56 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bg,
   },
   modalBtnRow: { flexDirection: 'row', marginTop: spacing.md },
+  qrModalCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    width: '90%',
+    alignItems: 'center',
+    ...shadow.lg,
+  },
+  qrModalTitle: {
+    fontSize: 16,
+    fontFamily: 'SourceSerif4_700Bold',
+    color: colors.brandNavy,
+    textAlign: 'center',
+  },
+  qrModalSub: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginBottom: spacing.md,
+    textAlign: 'center',
+  },
+  qrContainerBox: {
+    padding: spacing.md,
+    backgroundColor: '#FAFAF8',
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.md,
+  },
+  qrSummaryLine: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+    paddingVertical: 2,
+  },
+  qrSummaryLabel: {
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
+  qrSummaryVal: {
+    fontSize: 12,
+    color: colors.textPrimary,
+    fontWeight: '600',
+  },
+  qrDeskHelp: {
+    fontSize: 11,
+    color: colors.textTertiary,
+    textAlign: 'center',
+    marginTop: spacing.sm,
+    lineHeight: 15,
+  },
 });
