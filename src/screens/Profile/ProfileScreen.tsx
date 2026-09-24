@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AvatarCircle, Divider, Button } from '../../components';
 import { colors, fontSize, spacing, radius } from '../../theme/tokens';
@@ -142,4 +142,35 @@ const styles = StyleSheet.create({
   deleteLabel: { fontSize: fontSize.base, color: colors.danger, fontWeight: '600' },
   deleteChevron: { fontSize: fontSize.xl, color: colors.danger, fontWeight: '300' },
   logoutContainer: { marginTop: spacing.xl },
+  brandFooter: {
+    alignItems: 'center',
+    marginTop: spacing.xxl,
+    marginBottom: spacing.xl,
+    paddingTop: spacing.lg,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  footerLogo: {
+    width: 140,
+    height: 48,
+    marginBottom: spacing.xs,
+  },
+  footerTagline: {
+    fontSize: fontSize.sm,
+    fontWeight: '600',
+    color: colors.brandNavy,
+    fontStyle: 'italic',
+  },
+  footerVersion: {
+    fontSize: fontSize.xs,
+    color: colors.textSecondary,
+    marginTop: 4,
+    fontWeight: '500',
+  },
+  footerCopy: {
+    fontSize: fontSize.xs,
+    color: colors.textTertiary,
+    marginTop: 2,
+    textAlign: 'center',
+  },
 });

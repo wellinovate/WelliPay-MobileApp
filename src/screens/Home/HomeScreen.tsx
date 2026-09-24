@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Card, Button, StatusPill, AvatarCircle } from '../../components';
 import { colors, fontSize, spacing, radius } from '../../theme/tokens';
@@ -29,12 +29,21 @@ export default function HomeScreen({ navigation }: any) {
       <View style={styles.topBar}>
         <TouchableOpacity style={styles.personChip} onPress={()=>setShowSheet(true)} activeOpacity={0.7}>
           <AvatarCircle personId={activePerson} name={person?.name||'Me'} size={34}/>
-          <Text style={styles.personName}>{person?.name||'Me'}</Text>
-          <Text style={styles.caret}>▾</Text>
+          <View>
+            <Text style={styles.personName}>{person?.name||'Me'}</Text>
+            <Text style={styles.caret}>▾ Switch profile</Text>
+          </View>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.bellBtn} onPress={()=>navigation.navigate('Notifications')} activeOpacity={0.7}>
-          <Text style={styles.bell}>🔔</Text>
-        </TouchableOpacity>
+        <View style={styles.topRightRow}>
+          <Image
+            source={require('../../../assets/wellipay-mark.png')}
+            style={styles.brandMark}
+            resizeMode="contain"
+          />
+          <TouchableOpacity style={styles.bellBtn} onPress={()=>navigation.navigate('Notifications')} activeOpacity={0.7}>
+            <Text style={styles.bell}>🔔</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
@@ -232,7 +241,9 @@ const styles = StyleSheet.create({
   topBar:{flexDirection:'row',alignItems:'center',justifyContent:'space-between',paddingHorizontal:spacing.lg,paddingVertical:spacing.md},
   personChip:{flexDirection:'row',alignItems:'center',gap:spacing.sm,paddingHorizontal:spacing.sm,paddingVertical:spacing.xs,borderRadius:radius.full},
   personName:{fontSize:fontSize.base,fontWeight:'600',color:colors.textPrimary},
-  caret:{fontSize:10,color:colors.textTertiary},
+  caret:{fontSize:11,color:colors.textTertiary,marginTop:1},
+  topRightRow:{flexDirection:'row',alignItems:'center',gap:spacing.sm},
+  brandMark:{width:34,height:34,borderRadius:8},
   bellBtn:{width:40,height:40,borderRadius:20,alignItems:'center',justifyContent:'center'},
   bell:{fontSize:20},
   body:{paddingHorizontal:spacing.lg,paddingBottom:spacing.xxxl},

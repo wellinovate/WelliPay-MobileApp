@@ -1,9 +1,17 @@
 export const colors = {
-  accent: '#1B5E6B',
-  accentLight: '#E8F4F7',
-  accentMid: '#4A8FA0',
-  accentDark: '#0E3D49',
-  accentBorder: '#B8D9E0',
+  // Official WelliPay Brand Palette
+  brandNavy: '#12234E',
+  brandNavyDark: '#0A1633',
+  brandNavyLight: '#EEF2F8',
+  brandTeal: '#08716D',
+  brandTealLight: '#E0F4F4',
+  brandTealDark: '#054B48',
+
+  accent: '#08716D',
+  accentLight: '#E0F4F4',
+  accentMid: '#1A8F8B',
+  accentDark: '#12234E',
+  accentBorder: '#A8DCDB',
   danger: '#C0392B',
   dangerLight: '#FDECEA',
   dangerDark: '#922B21',
