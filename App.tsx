@@ -3,6 +3,7 @@ import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
+import { ClerkProvider } from '@clerk/clerk-expo';
 import {
   useFonts,
   SourceSerif4_400Regular,
@@ -12,6 +13,8 @@ import {
 
 import RootNavigator from './src/navigation/RootNavigator';
 import { colors } from './src/theme/tokens';
+import { tokenCache } from './src/auth/tokenCache';
+import { CLERK_PUBLISHABLE_KEY } from './src/auth/clerkConfig';
 
 export default function App() {
   const [fontsLoaded] = useFonts({
@@ -29,12 +32,14 @@ export default function App() {
   }
 
   return (
-    <SafeAreaProvider>
-      <NavigationContainer>
-        <StatusBar style="auto" />
-        <RootNavigator />
-      </NavigationContainer>
-    </SafeAreaProvider>
+    <ClerkProvider publishableKey={CLERK_PUBLISHABLE_KEY} tokenCache={tokenCache}>
+      <SafeAreaProvider>
+        <NavigationContainer>
+          <StatusBar style="auto" />
+          <RootNavigator />
+        </NavigationContainer>
+      </SafeAreaProvider>
+    </ClerkProvider>
   );
 }
 
