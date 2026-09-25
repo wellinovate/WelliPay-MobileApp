@@ -60,6 +60,7 @@ import EpisodeTimelineScreen from '../screens/Bills/EpisodeTimelineScreen';
 import HmoReconcileScreen from '../screens/HMO/HmoReconcileScreen';
 import { FamilyPayHubScreen } from '../screens/FamilyPay/FamilyPayHubScreen';
 import { WelliPassScreen } from '../screens/Discharge/WelliPassScreen';
+import { HospitalDeskTicketScreen } from '../screens/Discharge/HospitalDeskTicketScreen';
 import { RxPharmacyScreen } from '../screens/Pharmacy/RxPharmacyScreen';
 import { UssdOfflineScreen } from '../screens/Offline/UssdOfflineScreen';
 import { ProviderDeskScreen } from '../screens/Provider/ProviderDeskScreen';
@@ -213,6 +214,7 @@ export default function RootNavigator() {
       <Stack.Screen name="RxPharmacy" component={RxPharmacyScreen} />
       <Stack.Screen name="UssdOffline" component={UssdOfflineScreen} />
       <Stack.Screen name="ProviderDesk" component={ProviderDeskScreen} />
+      <Stack.Screen name="HospitalDeskTicket" component={HospitalDeskTicketScreen} />
       <Stack.Screen name="HealthSavePots" component={HealthSavePotsScreen} />
 
       {/* Profile Flow */}

@@ -58,6 +58,7 @@ export type RootStackParamList = {
   RxPharmacy: { orderId?: string } | undefined;
   UssdOffline: { billId?: string } | undefined;
   ProviderDesk: undefined;
+  HospitalDeskTicket: { billId?: string; patientName?: string; ward?: string } | undefined;
   HealthSavePots: undefined;
   // Healthcare & Insurance
   Hmo: undefined;

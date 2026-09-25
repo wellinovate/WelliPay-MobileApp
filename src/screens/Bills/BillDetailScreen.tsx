@@ -437,6 +437,17 @@ Step 5: Patient Self-Pay set to ${NAIRA(Math.round(totalCost * (activePolicy.coP
 
           <TouchableOpacity
             style={styles.linkCard}
+            onPress={() => navigation.navigate('HospitalDeskTicket', { billId: bill.id })}
+          >
+            <Text style={styles.linkIcon}>🎫</Text>
+            <View>
+              <Text style={styles.linkTitle}>Hospital Desk Queue Ticket (#A-14)</Text>
+              <Text style={styles.linkSub}>Room 102 Cashier · Bedside Service · Co-Pay Clearance</Text>
+            </View>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.linkCard}
             onPress={() => navigation.navigate('WelliPass', { billId: bill.id })}
           >
             <Text style={styles.linkIcon}>⚡</Text>

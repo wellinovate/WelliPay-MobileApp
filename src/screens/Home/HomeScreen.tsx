@@ -169,12 +169,12 @@ export default function HomeScreen({ navigation }: any) {
 
           <View style={{flexDirection:'row',gap:spacing.sm,marginTop:spacing.sm}}>
             <TouchableOpacity
-              style={{flex:1,backgroundColor:'#F0F9FA',padding:spacing.md,borderRadius:radius.sm,borderColor:'#CCECEF',borderWidth:1}}
+              style={{flex:1,backgroundColor:'#EFF6FF',padding:spacing.md,borderRadius:radius.sm,borderColor:'#BFDBFE',borderWidth:1}}
               activeOpacity={0.7}
-              onPress={() => navigation.navigate('HealthSavePots')}
+              onPress={() => navigation.navigate('HospitalDeskTicket')}
             >
-              <Text style={{fontSize:fontSize.sm,fontWeight:'700',color:colors.accentDark}}>🏺 Smart Ajo Pots</Text>
-              <Text style={{fontSize:fontSize.xs,color:colors.accentMid,marginTop:2}}>11.5% APY · Round-up</Text>
+              <Text style={{fontSize:fontSize.sm,fontWeight:'700',color:'#1D4ED8'}}>🎫 Desk Ticket</Text>
+              <Text style={{fontSize:fontSize.xs,color:'#2563EB',marginTop:2}}>Token #A-14 · Room 102</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -182,8 +182,19 @@ export default function HomeScreen({ navigation }: any) {
               activeOpacity={0.7}
               onPress={() => navigation.navigate('ProviderDesk')}
             >
-              <Text style={{fontSize:fontSize.sm,fontWeight:'700',color:colors.textPrimary}}>🏢 Hospital Desk</Text>
-              <Text style={{fontSize:fontSize.xs,color:colors.textSecondary,marginTop:2}}>Cashier & HMO Portal</Text>
+              <Text style={{fontSize:fontSize.sm,fontWeight:'700',color:colors.textPrimary}}>🏢 Cashier Desk</Text>
+              <Text style={{fontSize:fontSize.xs,color:colors.textSecondary,marginTop:2}}>Staff Portal & Till</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={{flexDirection:'row',gap:spacing.sm,marginTop:spacing.sm}}>
+            <TouchableOpacity
+              style={{flex:1,backgroundColor:'#F0F9FA',padding:spacing.md,borderRadius:radius.sm,borderColor:'#CCECEF',borderWidth:1}}
+              activeOpacity={0.7}
+              onPress={() => navigation.navigate('HealthSavePots')}
+            >
+              <Text style={{fontSize:fontSize.sm,fontWeight:'700',color:colors.accentDark}}>🏺 Smart Ajo Pots</Text>
+              <Text style={{fontSize:fontSize.xs,color:colors.accentMid,marginTop:2}}>11.5% APY · Round-up</Text>
             </TouchableOpacity>
           </View>
         </Card>
