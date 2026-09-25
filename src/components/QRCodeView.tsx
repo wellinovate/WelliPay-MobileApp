@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, Image, StyleSheet, ActivityIndicator } from 'react-native';
+import React, { useMemo } from 'react';
+import { View, Image, StyleSheet } from 'react-native';
 import QRCode from 'qrcode';
 import { colors, radius } from '../theme/tokens';
 
@@ -17,80 +17,89 @@ interface QRCodeViewProps {
 
 export const QRCodeView: React.FC<QRCodeViewProps> = ({
   value,
-  size = 200,
-  color = { dark: '#12234E', light: '#FFFFFF' },
+  size = 180,
+  color = { dark: '#004961', light: '#FFFFFF' },
   logo,
-  logoSize = 38,
+  logoSize = 36,
   style,
 }) => {
-  const [dataUrl, setDataUrl] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const darkColor = color.dark || '#004961';
+  const lightColor = color.light || '#FFFFFF';
 
-  useEffect(() => {
-    let isMounted = true;
-    setLoading(true);
-
-    QRCode.toDataURL(
-      value,
-      {
-        width: Math.max(size * 2, 400),
-        margin: 1,
-        color: {
-          dark: color.dark || '#12234E',
-          light: color.light || '#FFFFFF',
-        },
-        errorCorrectionLevel: 'H', // High error correction to allow center logo overlay
-      },
-      (err: any, url: string) => {
-        if (!isMounted) return;
-        if (err) {
-          console.error('QR Code generation error:', err);
-          setDataUrl(null);
-        } else {
-          setDataUrl(url);
+  const matrix = useMemo(() => {
+    try {
+      const qr = QRCode.create(value || 'WELLIPASS-EMPTY', {
+        errorCorrectionLevel: 'M',
+      });
+      const moduleCount = qr.modules.size;
+      const rows: boolean[][] = [];
+      for (let r = 0; r < moduleCount; r++) {
+        const row: boolean[] = [];
+        for (let c = 0; c < moduleCount; c++) {
+          row.push(Boolean(qr.modules.get(r, c)));
         }
-        setLoading(false);
+        rows.push(row);
       }
-    );
+      return { moduleCount, rows };
+    } catch (e) {
+      console.warn('QR code matrix generation failed:', e);
+      return null;
+    }
+  }, [value]);
 
-    return () => {
-      isMounted = false;
-    };
-  }, [value, size, color.dark, color.light]);
+  if (!matrix) {
+    return null;
+  }
+
+  const cellSize = size / matrix.moduleCount;
 
   return (
-    <View style={[styles.container, { width: size, height: size }, style]}>
-      {loading ? (
-        <View style={[styles.loadingBox, { width: size, height: size }]}>
-          <ActivityIndicator size="small" color={colors.brandNavy} />
-        </View>
-      ) : dataUrl ? (
-        <View style={{ width: size, height: size, position: 'relative', alignItems: 'center', justifyContent: 'center' }}>
+    <View
+      style={[
+        styles.container,
+        {
+          width: size,
+          height: size,
+          backgroundColor: lightColor,
+        },
+        style,
+      ]}
+    >
+      <View style={{ width: size, height: size }}>
+        {matrix.rows.map((row, rIdx) => (
+          <View key={`r-${rIdx}`} style={{ flexDirection: 'row', height: cellSize }}>
+            {row.map((isDark, cIdx) => (
+              <View
+                key={`c-${cIdx}`}
+                style={{
+                  width: cellSize,
+                  height: cellSize,
+                  backgroundColor: isDark ? darkColor : lightColor,
+                }}
+              />
+            ))}
+          </View>
+        ))}
+      </View>
+
+      {logo && (
+        <View
+          style={[
+            styles.logoWrap,
+            {
+              width: logoSize + 8,
+              height: logoSize + 8,
+              borderRadius: (logoSize + 8) / 2,
+            },
+          ]}
+        >
           <Image
-            source={{ uri: dataUrl }}
-            style={{ width: size, height: size, borderRadius: radius.sm }}
+            source={logo}
+            style={{ width: logoSize, height: logoSize, borderRadius: logoSize / 2 }}
             resizeMode="contain"
           />
-          {logo && (
-            <View
-              style={[
-                styles.logoWrap,
-                {
-                  width: logoSize + 8,
-                  height: logoSize + 8,
-                  borderRadius: (logoSize + 8) / 2,
-                },
-              ]}
-            >
-              <Image
-                source={logo}
-                style={{ width: logoSize, height: logoSize, borderRadius: logoSize / 2 }}
-                resizeMode="contain"
-              />
-            </View>
-          )}
         </View>
-      ) : null}
+      )}
     </View>
   );
 };
@@ -99,14 +108,9 @@ const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
     borderRadius: radius.md,
     overflow: 'hidden',
-  },
-  loadingBox: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#F8F9FA',
+    position: 'relative',
   },
   logoWrap: {
     position: 'absolute',
