@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { RootStackParamList } from '../../navigation/types';
 import { useStore } from '../../state/store';
@@ -29,6 +30,7 @@ export const WelliPassScreen: React.FC = () => {
   const route = useRoute<RouteProps>();
   const { lang, welliPasses, updateWelliPassStep, requestWelliPass } = useStore();
   const t = COPY[lang] || COPY.en;
+  const insets = useSafeAreaInsets();
 
   const billId = route.params?.billId;
   const passId = route.params?.passId;
@@ -126,7 +128,7 @@ export const WelliPassScreen: React.FC = () => {
         }
       />
 
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + spacing.xxl, paddingLeft: Math.max(insets.left, spacing.md), paddingRight: Math.max(insets.right, spacing.md) }]} showsVerticalScrollIndicator={false}>
         {/* Status Hero Card */}
         <Card style={[styles.heroCard, isCleared ? styles.heroCardCleared : styles.heroCardPending]}>
           <View style={styles.statusBadgeRow}>

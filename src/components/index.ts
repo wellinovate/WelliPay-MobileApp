@@ -14,3 +14,5 @@ export { default as Banner } from './Banner';
 export { default as BarChart } from './BarChart';
 export { default as ProgressBar } from './ProgressBar';
 export * from './QRCodeView';
+
+export { default as SafeAreaView } from "./SafeAreaView";

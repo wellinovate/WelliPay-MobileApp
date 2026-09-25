@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { RootStackParamList } from '../../navigation/types';
 import { useStore } from '../../state/store';
@@ -29,6 +30,7 @@ export const HospitalDeskTicketScreen: React.FC = () => {
   const route = useRoute<RouteProps>();
   const { lang, welliPasses } = useStore();
   const t = COPY[lang] || COPY.en;
+  const insets = useSafeAreaInsets();
 
   const [nowServing, setNowServing] = useState(12);
   const [bedsideRequested, setBedsideRequested] = useState(false);
@@ -111,7 +113,7 @@ export const HospitalDeskTicketScreen: React.FC = () => {
         }
       />
 
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + spacing.xxl, paddingLeft: Math.max(insets.left, spacing.md), paddingRight: Math.max(insets.right, spacing.md) }]} showsVerticalScrollIndicator={false}>
         {/* Scalloped Physical Queue Ticket Card */}
         <View style={styles.ticketCard}>
           {/* Ticket Header */}
