@@ -75,13 +75,39 @@ export const WelliPassScreen: React.FC = () => {
     );
   };
 
-  const handleResendSms = () => {
+  const handleSendSmsOtp = () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     Alert.alert(
-      'SMS Token Dispatched ✓',
-      `Toll-free exit token sent to:\n• Patient: 0803 123 4567\n• Next-of-Kin: Fatima Umar (+234 802 345 6789)\n\nMessage: "WELLIPASS CLEARED: ${activePass.patientName} (LAG-4401) is cleared to exit ${activePass.hospitalName}. Exit Code: ${exitPin}. Valid until 18:00 today."`
+      "SMS OTP & Exit PIN Dispatched ✓",
+      "Toll-free SMS sent to 0803 123 4567 (Patient Phone).\n\nMessage: \"WelliPay Gate Clearance OTP: " + exitPin + " for " + activePass.patientName + " (" + activePass.gatePassCode + "). Present this numeric code to the security officer at " + activePass.hospitalName + " main gate. Valid until 18:00 today.\""
     );
   };
+
+  const handleSendEmail = () => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    Alert.alert(
+      "Clearance Slip & Certificate Emailed ✓",
+      "Official discharge clearance document sent to j.umar@email.ng.\n\nIncludes:\n• Cryptographic gate clearance code: " + exitPin + "\n• Official hospital digital seal & doctor signoff\n• Printable A4 PDF discharge pass with offline QR"
+    );
+  };
+
+  const handleSendWhatsAppPatient = () => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    Alert.alert(
+      "WhatsApp Clearance Pass Dispatched ✓",
+      "Verified WelliPay notification sent to +234 803 123 4567 with digital gate pass link, Exit PIN (" + exitPin + "), and hospital gate exit instructions."
+    );
+  };
+
+  const handleSendToNextOfKin = () => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    Alert.alert(
+      "Next-of-Kin Notified ✓",
+      "Discharge clearance code sent via SMS & WhatsApp to:\n\n• Next-of-Kin: Fatima Umar (Wife)\n• Phone: +234 802 345 6789\n\nMessage: \"Discharge Clearance: " + activePass.patientName + " is 100% cleared to exit " + activePass.hospitalName + ". Exit Gate PIN: " + exitPin + ". You can drive to the hospital gate for pickup.\""
+    );
+  };
+
+  const handleResendSms = handleSendSmsOtp;
 
   const handleShareWhatsApp = async () => {
     Haptics.selectionAsync();
@@ -254,22 +280,89 @@ export const WelliPassScreen: React.FC = () => {
 
               <Divider style={{ marginVertical: spacing.sm }} />
 
-              {/* Fallback 2: SMS Token */}
+              {/* Fallback 2: Multi-Channel Dispatch Hub (No Smartphone) */}
               <View style={styles.fallbackItem}>
                 <View style={styles.fallbackItemIcon}>
-                  <Text style={{ fontSize: 18 }}>💬</Text>
+                  <Text style={{ fontSize: 18 }}>📡</Text>
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.fallbackItemTitle}>2. Automatic Toll-Free SMS Token</Text>
+                  <Text style={styles.fallbackItemTitle}>2. Multi-Channel Dispatch (SMS OTP, Email, WhatsApp & Next-of-Kin)</Text>
                   <Text style={styles.fallbackItemDesc}>
-                    Works on basic 2G feature phones ("palasa" / torchlight phones) with zero internet. Sent to patient (0803 123 4567) and Next-of-Kin (Fatima Umar).
+                    When patient does not have a smartphone or phone battery is flat, dispatch digital clearance codes through these 4 instant offline channels:
                   </Text>
-                  <Button
-                    label="Resend SMS Token to NoK"
-                    variant="secondary"
-                    onPress={handleResendSms}
-                    style={{ marginTop: spacing.xs, alignSelf: 'flex-start' }}
-                  />
+
+                  {/* Channel A: SMS OTP to Patient Phone */}
+                  <View style={styles.channelCard}>
+                    <View style={styles.channelRow}>
+                      <Text style={{ fontSize: 16 }}>📱</Text>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.channelTitle}>A. SMS OTP & Exit PIN (2G Basic Phone)</Text>
+                        <Text style={styles.channelSub}>Recipient: 0803 123 4567 (Works on torchlight phones)</Text>
+                      </View>
+                    </View>
+                    <Button
+                      label="📲 Send SMS OTP to My Phone"
+                      variant="secondary"
+                      onPress={handleSendSmsOtp}
+                      style={{ marginTop: 4 }}
+                    />
+                  </View>
+
+                  {/* Channel B: Email Clearance Slip */}
+                  <View style={styles.channelCard}>
+                    <View style={styles.channelRow}>
+                      <Text style={{ fontSize: 16 }}>📧</Text>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.channelTitle}>B. Official Clearance Email & PDF</Text>
+                        <Text style={styles.channelSub}>Recipient: j.umar@email.ng (Certificate with hospital stamp)</Text>
+                      </View>
+                    </View>
+                    <Button
+                      label="📧 Send Clearance Email"
+                      variant="secondary"
+                      onPress={handleSendEmail}
+                      style={{ marginTop: 4 }}
+                    />
+                  </View>
+
+                  {/* Channel C: WhatsApp Notification */}
+                  <View style={styles.channelCard}>
+                    <View style={styles.channelRow}>
+                      <Text style={{ fontSize: 16 }}>💬</Text>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.channelTitle}>C. Patient WhatsApp Clearance Pass</Text>
+                        <Text style={styles.channelSub}>Recipient: +234 803 123 4567 (Verified Business Bot)</Text>
+                      </View>
+                    </View>
+                    <Button
+                      label="💬 Send WhatsApp Pass"
+                      variant="secondary"
+                      onPress={handleSendWhatsAppPatient}
+                      style={{ marginTop: 4 }}
+                    />
+                  </View>
+
+                  {/* Channel D: Next-of-Kin Direct Alert */}
+                  <View style={[styles.channelCard, { backgroundColor: '#FEF9C3', borderColor: '#FDE047' }]}>
+                    <View style={styles.channelRow}>
+                      <Text style={{ fontSize: 16 }}>👥</Text>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.channelTitle, { color: '#854D0E' }]}>D. Next-of-Kin (NOK) Direct Alert</Text>
+                        <Text style={styles.channelSub}>
+                          Fatima Umar (Wife / Primary Contact) · +234 802 345 6789
+                        </Text>
+                        <Text style={[styles.channelSub, { color: '#713F12', marginTop: 2 }]}>
+                          Sends Exit Code {exitPin} via SMS + WhatsApp so relatives picking up the patient have the code ready.
+                        </Text>
+                      </View>
+                    </View>
+                    <Button
+                      label="👥 Send Exit Code to Next-of-Kin (+234 802 345 6789)"
+                      variant="primary"
+                      onPress={handleSendToNextOfKin}
+                      style={{ marginTop: 6 }}
+                    />
+                  </View>
                 </View>
               </View>
 
@@ -838,5 +931,30 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#201E1D',
     lineHeight: 16,
+  },
+  channelCard: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.sm,
+    padding: spacing.sm,
+    marginTop: 4,
+  },
+  channelRow: {
+    flexDirection: "row",
+    gap: spacing.xs,
+    alignItems: "center",
+    marginBottom: 4,
+  },
+  channelTitle: {
+    fontFamily: "SourceSerif4_600SemiBold",
+    fontSize: fontSize.xs,
+    color: colors.textPrimary,
+  },
+  channelSub: {
+    fontFamily: "SourceSerif4_400Regular",
+    fontSize: 10.5,
+    color: colors.textSecondary,
+    lineHeight: 14,
   },
 });

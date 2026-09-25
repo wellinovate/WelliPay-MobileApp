@@ -34,7 +34,9 @@ export const HospitalDeskTicketScreen: React.FC = () => {
 
   const [nowServing, setNowServing] = useState(12);
   const [bedsideRequested, setBedsideRequested] = useState(false);
+  const [bedsideEtaMins, setBedsideEtaMins] = useState(4);
   const [coPaySettled, setCoPaySettled] = useState(false);
+  const [bedsideMobilityReason, setBedsideMobilityReason] = useState("Post-Surgery Bedrest / Weak to Walk");
   const [thermalModalVisible, setThermalModalVisible] = useState(false);
 
   const patientToken = 14;
@@ -53,13 +55,35 @@ export const HospitalDeskTicketScreen: React.FC = () => {
 
   const handleToggleBedside = () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    setBedsideRequested(prev => !prev);
     if (!bedsideRequested) {
+      setBedsideRequested(true);
       Alert.alert(
-        'Bedside Cashier Dispatched ✓',
-        'Hospital Billing Officer Sister Chinyere Eze has received your request. An attendant with a mobile POS terminal will visit Surgical Ward 3B, Bed 12 shortly.'
+        "Mobile POS Dispatched to Bedside ✓",
+        "Billing Officer Sister Chinyere Eze has assigned Attendant Mohammed Bello with a wireless 4G POS terminal.\n\nDestination: Surgical Ward 3B · Bed 12\nReason: " + bedsideMobilityReason + "\nETA: ~4 minutes"
+      );
+    } else {
+      Alert.alert(
+        "Cancel Bedside Request?",
+        "Are you sure you want to cancel the mobile POS visit to Ward 3B, Bed 12?",
+        [
+          { text: "Keep Request", style: "cancel" },
+          { text: "Cancel Visit", style: "destructive", onPress: () => setBedsideRequested(false) }
+        ]
       );
     }
+  };
+
+  const handleSimulateBedsidePOS = () => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setCoPaySettled(true);
+    Alert.alert(
+      "Bedside POS Payment Approved ✓",
+      "₦4,650 Co-Pay settled via Verifone Mobile POS (Slip #WP-POS-9921).\n\nCustomer thermal copy printed at bedside.\nYour WelliPass Gate Clearance is now 100% UNLOCKED!",
+      [
+        { text: "View WelliPass Gate Pass", onPress: () => navigation.navigate("WelliPass", { billId }) },
+        { text: "Done", style: "cancel" }
+      ]
+    );
   };
 
   const handlePayWallet = () => {
@@ -162,23 +186,103 @@ export const HospitalDeskTicketScreen: React.FC = () => {
           </View>
         </View>
 
-        {/* Bedside Service Request for Inpatients */}
-        <Card style={styles.bedsideCard}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-            <Text style={{ fontSize: 24 }}>🛏️</Text>
+        {/* Bedside Service Request for Inpatients (Unable to Walk) */}
+        <Card style={[styles.bedsideCard, bedsideRequested && styles.bedsideCardActive]}>
+          <View style={styles.bedsideHeaderRow}>
+            <View style={styles.bedsideIconCircle}>
+              <Text style={{ fontSize: 22 }}>{bedsideRequested ? "💳" : "🛏️"}</Text>
+            </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.bedsideTitle}>Bedside Service Available</Text>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                <Text style={styles.bedsideBadge}>IN-PATIENT BEDSIDE BILLING</Text>
+                {bedsideRequested && (
+                  <View style={styles.enRoutePill}>
+                    <View style={styles.pulseDot} />
+                    <Text style={styles.enRouteText}>EN ROUTE (~{bedsideEtaMins} MINS)</Text>
+                  </View>
+                )}
+              </View>
+              <Text style={styles.bedsideTitle}>
+                {bedsideRequested ? "Cashier Bringing Mobile POS to Your Bed" : "Request Mobile POS to Hospital Bed"}
+              </Text>
               <Text style={styles.bedsideSubtitle}>
-                Too weak or elderly to walk down to Room 102? An attendant will visit Ward 3B with a mobile card POS.
+                {bedsideRequested
+                  ? "Attendant Mohammed Bello is walking to Ward 3B with a wireless 4G POS terminal. Settle by card, cash, or transfer from your bed."
+                  : "Too weak, elderly, post-surgery, or in pain to walk to Room 102? A cashier attendant will bring a wireless card POS directly to Bed 12."}
               </Text>
             </View>
           </View>
-          <Button
-            label={bedsideRequested ? '✓ Bedside Attendant Dispatched' : 'Request Bedside Cashier Visit'}
-            variant={bedsideRequested ? 'secondary' : 'primary'}
-            onPress={handleToggleBedside}
-            style={{ marginTop: spacing.sm }}
-          />
+
+          {/* Ward & Hardware Info Box */}
+          <View style={styles.bedsideInfoBox}>
+            <View style={styles.bedsideInfoRow}>
+              <Text style={styles.bedsideInfoLabel}>📍 Patient Bed:</Text>
+              <Text style={styles.bedsideInfoValue}>Surgical Ward 3B · Bed 12</Text>
+            </View>
+            <View style={styles.bedsideInfoRow}>
+              <Text style={styles.bedsideInfoLabel}>🩺 Mobility Condition:</Text>
+              <Text style={styles.bedsideInfoValue}>{bedsideMobilityReason}</Text>
+            </View>
+            <View style={styles.bedsideInfoRow}>
+              <Text style={styles.bedsideInfoLabel}>📟 POS Device:</Text>
+              <Text style={styles.bedsideInfoValue}>Verifone V240m 4G POS (NFC / Chip & PIN / USSD)</Text>
+            </View>
+            <View style={styles.bedsideInfoRow}>
+              <Text style={styles.bedsideInfoLabel}>💰 Amount to Settle:</Text>
+              <Text style={[styles.bedsideInfoValue, { color: colors.accentDark, fontWeight: "700" }]}>
+                {coPaySettled ? "₦0 (Settled)" : "₦4,650 Co-Pay"}
+              </Text>
+            </View>
+          </View>
+
+          {!bedsideRequested ? (
+            <Button
+              label="💳 Request Cashier to Bring POS to Bed 12"
+              variant="primary"
+              onPress={handleToggleBedside}
+              style={{ marginTop: spacing.md }}
+            />
+          ) : (
+            <View style={{ marginTop: spacing.md, gap: spacing.sm }}>
+              {!coPaySettled ? (
+                <Button
+                  label="✓ Tap / Insert Card on Bedside POS"
+                  variant="primary"
+                  onPress={handleSimulateBedsidePOS}
+                />
+              ) : (
+                <View style={styles.settledBadge}>
+                  <Text style={styles.settledBadgeText}>✓ Bedside Co-Pay Cleared via Mobile POS</Text>
+                </View>
+              )}
+
+              <View style={{ flexDirection: "row", gap: spacing.sm }}>
+                <TouchableOpacity
+                  style={[styles.attendantBtn, { flex: 1 }]}
+                  onPress={handleCallCashier}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.attendantBtnText}>📞 Call Attendant</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.attendantBtn, { flex: 1 }]}
+                  onPress={handleWhatsAppCashier}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.attendantBtnText}>💬 WhatsApp Nurse</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.attendantBtn, { backgroundColor: "#FEE2E2", borderColor: "#FCA5A5" }]}
+                  onPress={handleToggleBedside}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.attendantBtnText, { color: "#991B1B" }]}>✕ Cancel</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
         </Card>
 
         {/* 4-Step Discharge Progress Audit */}
@@ -776,5 +880,98 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#201E1D',
     lineHeight: 16,
+  },
+  bedsideCardActive: {
+    backgroundColor: "#F0FDF4",
+    borderColor: "#86EFAC",
+    borderWidth: 1.5,
+  },
+  bedsideHeaderRow: {
+    flexDirection: "row",
+    gap: spacing.sm,
+    alignItems: "flex-start",
+  },
+  bedsideIconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.surfaceAlt,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  bedsideBadge: {
+    fontFamily: "SourceSerif4_700Bold",
+    fontSize: 9.5,
+    color: "#854D0E",
+    backgroundColor: "#FEF08A",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    letterSpacing: 0.5,
+  },
+  enRoutePill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "#DCFCE7",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  enRouteText: {
+    fontFamily: "SourceSerif4_700Bold",
+    fontSize: 9.5,
+    color: "#166534",
+    letterSpacing: 0.4,
+  },
+  bedsideInfoBox: {
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: radius.sm,
+    padding: spacing.sm,
+    marginTop: spacing.sm,
+    gap: 4,
+  },
+  bedsideInfoRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  bedsideInfoLabel: {
+    fontFamily: "SourceSerif4_400Regular",
+    fontSize: fontSize.xs,
+    color: colors.textSecondary,
+  },
+  bedsideInfoValue: {
+    fontFamily: "SourceSerif4_600SemiBold",
+    fontSize: fontSize.xs,
+    color: colors.textPrimary,
+  },
+  attendantBtn: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: radius.sm,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  attendantBtnText: {
+    fontFamily: "SourceSerif4_600SemiBold",
+    fontSize: 11,
+    color: colors.textPrimary,
+  },
+  settledBadge: {
+    backgroundColor: "#DCFCE7",
+    borderWidth: 1,
+    borderColor: "#86EFAC",
+    borderRadius: radius.sm,
+    paddingVertical: 8,
+    alignItems: "center",
+  },
+  settledBadgeText: {
+    fontFamily: "SourceSerif4_700Bold",
+    fontSize: 11.5,
+    color: "#166534",
   },
 });
