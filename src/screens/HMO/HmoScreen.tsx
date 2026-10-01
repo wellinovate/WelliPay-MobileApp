@@ -57,7 +57,14 @@ export default function HmoScreen({ navigation }: any) {
                     <Text style={styles.paProcedure}>Payer: {chk.payerRef}</Text>
                     <Text style={styles.paDate}>{new Date(chk.checkedAt).toLocaleDateString('en-NG', { day: '2-digit', month: 'short', year: 'numeric' })}</Text>
                   </View>
-                  <StatusPill status={chk.decision === 'APPROVED' ? 'paid' : chk.decision === 'PENDING' ? 'pending' : 'failed'} />
+                  <StatusPill
+                    status={
+                      chk.decision === 'ELIGIBLE' ? 'paid'
+                        : chk.decision === 'PARTIALLY_ELIGIBLE' ? 'partly_paid'
+                        : chk.decision === 'PENDING' ? 'pending'
+                        : 'failed'
+                    }
+                  />
                 </View>
                 <Divider style={styles.paDivider} />
                 <View style={styles.paCostRow}>
