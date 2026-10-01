@@ -11,7 +11,7 @@ type Flow = 'signIn' | 'signUp';
 export default function OTPScreen({ navigation, route }: any) {
   const { lang } = useStore();
   const t = COPY[lang];
-  const phone = route.params?.phone || '8030000000';
+  const email = route.params?.email || '';
   const flow: Flow = route.params?.flow || 'signIn';
   const { signIn, setActive: setActiveSignIn } = useSignIn();
   const { signUp, setActive: setActiveSignUp } = useSignUp();
@@ -35,7 +35,7 @@ export default function OTPScreen({ navigation, route }: any) {
     setErrorMsg('');
     try {
       if (flow === 'signIn') {
-        const attempt = await signIn!.attemptFirstFactor({ strategy: 'phone_code', code: fullCode });
+        const attempt = await signIn!.attemptFirstFactor({ strategy: 'email_code', code: fullCode });
         if (attempt.status === 'complete') {
           await setActiveSignIn!({ session: attempt.createdSessionId });
           navigation.navigate('ProfileSetup');
@@ -43,7 +43,7 @@ export default function OTPScreen({ navigation, route }: any) {
           throw new Error('Verification incomplete — this account may need an additional step.');
         }
       } else {
-        const attempt = await signUp!.attemptPhoneNumberVerification({ code: fullCode });
+        const attempt = await signUp!.attemptEmailAddressVerification({ code: fullCode });
         if (attempt.status === 'complete') {
           await setActiveSignUp!({ session: attempt.createdSessionId });
           navigation.navigate('ProfileSetup');
@@ -73,16 +73,16 @@ export default function OTPScreen({ navigation, route }: any) {
     setCode(''); setError(false); setErrorMsg(''); setCountdown(30);
     try {
       if (flow === 'signIn') {
-        const phoneFactor = signIn?.supportedFirstFactors?.find((f) => f.strategy === 'phone_code');
-        if (phoneFactor && 'phoneNumberId' in phoneFactor) {
-          await signIn!.prepareFirstFactor({ strategy: 'phone_code', phoneNumberId: phoneFactor.phoneNumberId });
+        const emailFactor = signIn?.supportedFirstFactors?.find((f) => f.strategy === 'email_code');
+        if (emailFactor && 'emailAddressId' in emailFactor) {
+          await signIn!.prepareFirstFactor({ strategy: 'email_code', emailAddressId: emailFactor.emailAddressId });
         }
       } else {
-        await signUp!.preparePhoneNumberVerification({ strategy: 'phone_code' });
+        await signUp!.prepareEmailAddressVerification({ strategy: 'email_code' });
       }
     } catch {
       // Resend failures aren't fatal — the user can wait for the countdown
-      // and try again, or go back and re-enter their number.
+      // and try again, or go back and re-enter their email.
     }
   };
 
@@ -92,8 +92,8 @@ export default function OTPScreen({ navigation, route }: any) {
     <View style={styles.screen}>
       <ScreenHeader title="" showBack/>
       <View style={styles.body}>
-        <Text style={styles.title}>{t.otpTitle}</Text>
-        <Text style={styles.helper}>{t.otpHelper}+234 {phone}</Text>
+        <Text style={styles.title}>Enter the code</Text>
+        <Text style={styles.helper}>We sent a 6-digit code to {email}</Text>
         <View style={styles.boxes}>
           {digits.map((d,i)=><View key={i} style={[styles.box, d&&styles.boxFilled, error&&styles.boxErr]}>
             <Text style={styles.boxText}>{d||''}</Text>
