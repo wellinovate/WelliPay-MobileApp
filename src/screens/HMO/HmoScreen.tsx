@@ -1,11 +1,13 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScreenHeader, Card, ProgressBar, StatusPill, Button, Divider } from '../../components';
 import { colors, fontSize, spacing, radius } from '../../theme/tokens';
 import { useStore } from '../../state/store';
 import { COPY } from '../../state/copy';
 import { NAIRA } from '../../utils/helpers';
+import { fetchEligibilityChecks, ApiEligibilityCheck } from '../../api/patientData';
+import { NotLinkedError } from '../../api/client';
 
 export default function HmoScreen({ navigation }: any) {
   const store = useStore();
@@ -13,12 +15,61 @@ export default function HmoScreen({ navigation }: any) {
   const t = COPY[lang] || COPY.en;
   const insets = useSafeAreaInsets();
 
+  // Real eligibility checks your hospital ran against a payer, loaded
+  // alongside the demo HMO policy cards below. wellipay-api has no model
+  // for the policy/annual-limit/co-pay cards or pre-authorizations below —
+  // only for the eligibility check itself — so only this section is real.
+  const [liveChecks, setLiveChecks] = useState<ApiEligibilityCheck[]>([]);
+  const [liveLoading, setLiveLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    fetchEligibilityChecks()
+      .then(items => { if (active) setLiveChecks(items); })
+      .catch(err => {
+        if (active && !(err instanceof NotLinkedError)) {
+          // eslint-disable-next-line no-console
+          console.warn('Failed to load eligibility checks', err);
+        }
+        if (active) setLiveChecks([]);
+      })
+      .finally(() => { if (active) setLiveLoading(false); });
+    return () => { active = false; };
+  }, []);
+
   return (
     <View style={[styles.screen, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
       <ScreenHeader title={t.hmoTitle} onBack={() => navigation.goBack()} />
 
       <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
-        <Text style={styles.sectionTitle}>Active Health Insurance</Text>
+        <View style={{ marginBottom: spacing.lg }}>
+          <Text style={styles.sectionTitle}>Your eligibility checks (from your hospital)</Text>
+          {liveLoading ? (
+            <ActivityIndicator color={colors.accent} style={{ marginVertical: spacing.sm }} />
+          ) : liveChecks.length === 0 ? (
+            <Text style={{ fontSize: fontSize.xs, color: colors.textTertiary }}>No eligibility checks on file yet.</Text>
+          ) : (
+            liveChecks.map(chk => (
+              <Card key={chk.eligibilityId} style={styles.paCard}>
+                <View style={styles.paRow}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.paFacility}>{chk.facilityRef}</Text>
+                    <Text style={styles.paProcedure}>Payer: {chk.payerRef}</Text>
+                    <Text style={styles.paDate}>{new Date(chk.checkedAt).toLocaleDateString('en-NG', { day: '2-digit', month: 'short', year: 'numeric' })}</Text>
+                  </View>
+                  <StatusPill status={chk.decision === 'APPROVED' ? 'paid' : chk.decision === 'PENDING' ? 'pending' : 'failed'} />
+                </View>
+                <Divider style={styles.paDivider} />
+                <View style={styles.paCostRow}>
+                  {chk.coveredAmount && <Text style={styles.paCostLabel}>Covered: {NAIRA(chk.coveredAmount.amountMinor / 100)}</Text>}
+                  {chk.patientResponsibility && <Text style={styles.paCostPatient}>You pay: {NAIRA(chk.patientResponsibility.amountMinor / 100)}</Text>}
+                </View>
+              </Card>
+            ))
+          )}
+        </View>
+
+        <Text style={styles.sectionTitle}>Demo health insurance</Text>
 
         {hmoPolicies.map(policy => {
           const isActive = policy.id === activeHmoId;

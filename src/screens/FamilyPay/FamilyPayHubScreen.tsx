@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,7 +8,7 @@ import {
   TextInput,
   Modal,
   Alert,
-  Share, Platform } from 'react-native';
+  Share, Platform, ActivityIndicator } from 'react-native';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as Haptics from 'expo-haptics';
@@ -19,6 +19,72 @@ import { COPY } from '../../state/copy';
 import { colors, spacing, radius, shadow } from '../../theme/tokens';
 import { NAIRA } from '../../utils/helpers';
 import { Button, Card, ScreenHeader, ProgressBar, Divider, Chip } from '../../components';
+import { fetchFamilyFundingRequests, fetchInvoice, ApiFundingRequest, ApiInvoice } from '../../api/patientData';
+
+// Real funding status for a live wellipay-api invoice — shown above the
+// demo FamilyPay pool/contributors UI below, which has no backend
+// equivalent yet (no create-link or add-contribution endpoint exists).
+function LiveFundingCard({ invoiceId }: { invoiceId: string }) {
+  const [loading, setLoading] = useState(true);
+  const [request, setRequest] = useState<ApiFundingRequest | null>(null);
+  const [invoice, setInvoice] = useState<ApiInvoice | null>(null);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    let active = true;
+    Promise.all([fetchFamilyFundingRequests(), fetchInvoice(invoiceId)])
+      .then(([requests, inv]) => {
+        if (!active) return;
+        setRequest(requests.find(r => r.invoiceId === invoiceId) || null);
+        setInvoice(inv);
+      })
+      .catch(err => { if (active) setError(err instanceof Error ? err.message : 'Could not load funding status.'); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [invoiceId]);
+
+  if (loading) return <ActivityIndicator color={colors.accent} style={{ marginVertical: spacing.lg }} />;
+  if (error) return <Text style={{ color: colors.danger, marginBottom: spacing.md }}>{error}</Text>;
+
+  return (
+    <Card style={styles.heroCard}>
+      <Text style={styles.sectionHeading}>Live funding status</Text>
+      {!request ? (
+        <Text style={styles.noContribText}>No family/sponsor contributions have been recorded on this bill yet.</Text>
+      ) : (
+        <>
+          <View style={styles.poolHeaderRow}>
+            <Text style={styles.poolLabel}>{request.providerRequestRef}</Text>
+            <Text style={styles.poolPercent}>{request.status}</Text>
+          </View>
+          {invoice && (
+            <ProgressBar value={request.fundedAmountMinor} max={invoice.amountMinor} color={colors.accent} />
+          )}
+          <View style={styles.poolStatRow}>
+            <View>
+              <Text style={styles.statKicker}>Collected</Text>
+              <Text style={styles.statValCol}>{NAIRA(request.fundedAmountMinor / 100)}</Text>
+            </View>
+          </View>
+          <Divider style={{ marginVertical: spacing.sm }} />
+          {request.contributions.length === 0 ? (
+            <Text style={styles.noContribText}>No contributions logged yet.</Text>
+          ) : (
+            request.contributions.map(c => (
+              <View key={c.contributionId} style={styles.contribItem}>
+                <View style={styles.contribTop}>
+                  <Text style={styles.contribName}>{c.sponsorRef}</Text>
+                  <Text style={styles.contribAmount}>+{NAIRA(c.amountMinor / 100)}</Text>
+                </View>
+                <Text style={styles.contribRelation}>{c.status}</Text>
+              </View>
+            ))
+          )}
+        </>
+      )}
+    </Card>
+  );
+}
 
 
 
@@ -35,7 +101,8 @@ export const FamilyPayHubScreen: React.FC = () => {
   const t = COPY[lang] || COPY.en;
 
   const billId = route.params?.billId;
-  const activeLink = familyPayLinks.find(l => !billId || l.billId === billId) || familyPayLinks[0];
+  const liveInvoiceId = route.params?.liveInvoiceId;
+  const activeLink = liveInvoiceId ? undefined : (familyPayLinks.find(l => !billId || l.billId === billId) || familyPayLinks[0]);
 
   const [selectedCurrency, setSelectedCurrency] = useState<'NGN' | 'USD' | 'GBP' | 'EUR' | 'CAD'>('NGN');
   const [modalVisible, setModalVisible] = useState(false);
@@ -43,6 +110,17 @@ export const FamilyPayHubScreen: React.FC = () => {
   const [contribRelation, setContribRelation] = useState('');
   const [contribAmount, setContribAmount] = useState('');
   const [contribMessage, setContribMessage] = useState('');
+
+  if (liveInvoiceId) {
+    return (
+      <View style={styles.container}>
+        <ScreenHeader title={t.familyPayTitle} onBack={() => navigation.goBack()} />
+        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+          <LiveFundingCard invoiceId={liveInvoiceId} />
+        </ScrollView>
+      </View>
+    );
+  }
 
   if (!activeLink) {
     return (

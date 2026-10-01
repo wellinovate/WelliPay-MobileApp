@@ -53,7 +53,7 @@ export type RootStackParamList = {
   HmoReconcile: { billId?: string } | undefined;
 
   // Advanced Healthcare Ecosystem
-  FamilyPayHub: { billId?: string } | undefined;
+  FamilyPayHub: { billId?: string; liveInvoiceId?: string } | undefined;
   WelliPass: { billId?: string; passId?: string } | undefined;
   RxPharmacy: { orderId?: string } | undefined;
   UssdOffline: { billId?: string } | undefined;

@@ -60,6 +60,11 @@ export interface AppState {
 
   // -- payment session
   payBillId: string | null;
+  // Set instead of payBillId when BillDetail is opened for a real invoice
+  // from wellipay-api (see BillsScreen's "Your bills" section) rather than
+  // a demo bill — BillDetailScreen checks this first and, when set,
+  // renders a simplified live-data view instead of the demo breakdown.
+  liveInvoiceId: string | null;
   payContext: 'bill' | 'topup' | 'savings' | 'installment';
   payAmountMode: 'full' | 'part';
   payPartAmount: string;
@@ -181,6 +186,7 @@ const initState = () => ({
   notifReceipts: true,
   notifPromo: false,
   payBillId: null,
+  liveInvoiceId: null,
   payContext: 'bill' as const,
   payAmountMode: 'full' as const,
   payPartAmount: '',

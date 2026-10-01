@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  Modal, TextInput, Alert,
+  Modal, TextInput, Alert, ActivityIndicator,
 } from 'react-native';
 import { ScreenHeader, Card, StatusPill, Button, Banner, Divider } from '../../components';
 import { colors, fontSize, spacing, radius, shadow } from '../../theme/tokens';
@@ -10,13 +10,97 @@ import { COPY } from '../../state/copy';
 import { NAIRA } from '../../utils/helpers';
 import { generateReceiptPdf, shareReceiptPdf } from '../../utils/pdfGenerator';
 import { hapticLight, hapticSuccess, hapticError } from '../../utils/haptics';
+import { fetchInvoice, ApiInvoice } from '../../api/patientData';
+
+// A real wellipay-api invoice only carries the fields serializeInvoice
+// returns (src/routes/patientData.ts) — no line items, HMO split,
+// deposits, or payer allocations. Rather than inventing those for a real
+// bill, this renders a simplified, clearly-separate summary instead of
+// the demo breakdown below.
+function LiveBillDetail({ invoiceId, navigation, onBack }: { invoiceId: string; navigation: any; onBack: () => void }) {
+  const [invoice, setInvoice] = useState<ApiInvoice | null>(null);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    fetchInvoice(invoiceId)
+      .then(inv => { if (active) setInvoice(inv); })
+      .catch(err => { if (active) setError(err instanceof Error ? err.message : 'Could not load this bill.'); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [invoiceId]);
+
+  return (
+    <View style={styles.screen}>
+      <ScreenHeader title="" onBack={onBack} />
+      <ScrollView contentContainerStyle={styles.body}>
+        <View style={styles.taglineBadge}>
+          <Text style={styles.taglineText}>WelliPay™ · Your hospital's bill</Text>
+        </View>
+        {loading && <ActivityIndicator color={colors.accent} style={{ marginTop: spacing.xl }} />}
+        {!loading && error && <Banner message={error} variant="err" style={{ marginTop: spacing.md }} />}
+        {!loading && invoice && (
+          <>
+            <Text style={styles.date}>{new Date(invoice.createdAt).toLocaleDateString('en-NG', { day: '2-digit', month: 'short', year: 'numeric' })} · {invoice.providerInvoiceRef}</Text>
+            <Text style={styles.facility}>{invoice.description}</Text>
+            <StatusPill status={invoice.status === 'PAID' ? 'paid' : invoice.status === 'PARTIALLY_PAID' ? 'partly_paid' : 'unpaid'} />
+
+            <View style={styles.bigAmountBox}>
+              <Text style={styles.bigAmount}>{NAIRA((invoice.amountMinor - invoice.paidAmountMinor) / 100)}</Text>
+              <Text style={styles.amtLabel}>Amount outstanding</Text>
+            </View>
+
+            <Card style={styles.breakdownCard}>
+              <Text style={styles.kicker}>BILL SUMMARY</Text>
+              <View style={styles.breakdownTable}>
+                <View style={styles.tableRow}>
+                  <Text style={styles.rowLabel}>Total bill amount</Text>
+                  <Text style={styles.rowVal}>{NAIRA(invoice.amountMinor / 100)}</Text>
+                </View>
+                {invoice.paidAmountMinor > 0 && (
+                  <View style={styles.tableRow}>
+                    <Text style={styles.rowLabel}>Paid to date</Text>
+                    <Text style={[styles.rowVal, { color: colors.accent }]}>-{NAIRA(invoice.paidAmountMinor / 100)}</Text>
+                  </View>
+                )}
+                {invoice.dueAt && (
+                  <View style={styles.tableRow}>
+                    <Text style={styles.rowLabel}>Due</Text>
+                    <Text style={styles.rowVal}>{new Date(invoice.dueAt).toLocaleDateString('en-NG', { day: '2-digit', month: 'short', year: 'numeric' })}</Text>
+                  </View>
+                )}
+              </View>
+            </Card>
+
+            <TouchableOpacity
+              style={styles.linkCard}
+              onPress={() => navigation.navigate('FamilyPayHub', { liveInvoiceId: invoice.invoiceId })}
+            >
+              <Text style={styles.linkIcon}>🌍</Text>
+              <View>
+                <Text style={styles.linkTitle}>FamilyPay™ funding status</Text>
+                <Text style={styles.linkSub}>See family/sponsor contributions recorded on this bill</Text>
+              </View>
+            </TouchableOpacity>
+          </>
+        )}
+      </ScrollView>
+    </View>
+  );
+}
 
 export default function BillDetailScreen({ navigation }: any) {
   const {
-    lang, bills, payBillId, setPaySession, hmoPolicies, activeHmoId,
+    lang, bills, payBillId, liveInvoiceId, setPaySession, hmoPolicies, activeHmoId,
     adjudicateHmoTariff, applyDepositToBill, fundPspWithHealthSave,
     requestFamilyPay, applyEmployerBenefit, savingsGoal, people,
   } = useStore();
+
+  if (liveInvoiceId) {
+    return <LiveBillDetail invoiceId={liveInvoiceId} navigation={navigation} onBack={() => navigation.goBack()} />;
+  }
 
   const activePolicy = hmoPolicies.find(p => p.id === activeHmoId) || hmoPolicies[0];
   const t = COPY[lang] || COPY.en;
