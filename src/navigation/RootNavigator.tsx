@@ -1,13 +1,16 @@
-import React from 'react';
-import { View, Text, StyleSheet, Platform } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, Platform, ActivityIndicator } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useAuth } from '@clerk/clerk-expo';
 
 import { colors, fontSize, radius, spacing } from '../theme/tokens';
 import { useStore } from '../state/store';
 import { COPY } from '../state/copy';
 import { RootStackParamList, MainTabParamList } from './types';
+import { getValidPatientToken } from '../auth/patientSession';
+import { refreshPatientToken } from '../api/patientAuth';
 
 // Auth Screens
 import WelcomeScreen from '../screens/Auth/WelcomeScreen';
@@ -150,10 +153,63 @@ function MainTabNavigator() {
   );
 }
 
+// Every cold start used to hardcode initialRouteName="Welcome", even when
+// Clerk already had a valid session — that sent an already-signed-in user
+// straight back through Phone/OTP, where signIn.create() throws
+// "You're already signed in" and dead-ends. This resolves the real
+// starting screen once, before the stack ever mounts: Welcome only for a
+// genuinely signed-out device; straight to MainTabs if a WelliPay patient
+// token is already valid or can be silently refreshed from the Clerk
+// session; LinkWR if Clerk is signed in but this device was never linked
+// (or linking lapsed).
+function useInitialRoute(): keyof RootStackParamList | null {
+  const { isLoaded, isSignedIn, getToken } = useAuth();
+  const [route, setRoute] = useState<keyof RootStackParamList | null>(null);
+
+  useEffect(() => {
+    if (!isLoaded) return;
+    let active = true;
+    (async () => {
+      if (!isSignedIn) {
+        if (active) setRoute('Welcome');
+        return;
+      }
+      try {
+        const existing = await getValidPatientToken();
+        if (existing) {
+          if (active) setRoute('MainTabs');
+          return;
+        }
+        const clerkToken = await getToken();
+        if (clerkToken && (await refreshPatientToken(clerkToken))) {
+          if (active) setRoute('MainTabs');
+        } else {
+          if (active) setRoute('LinkWR');
+        }
+      } catch {
+        if (active) setRoute('LinkWR');
+      }
+    })();
+    return () => { active = false; };
+  }, [isLoaded, isSignedIn]);
+
+  return route;
+}
+
 export default function RootNavigator() {
+  const initialRouteName = useInitialRoute();
+
+  if (!initialRouteName) {
+    return (
+      <View style={styles.bootLoading}>
+        <ActivityIndicator color={colors.accent} size="large" />
+      </View>
+    );
+  }
+
   return (
     <Stack.Navigator
-      initialRouteName="Welcome"
+      initialRouteName={initialRouteName}
       screenOptions={{
         headerShown: false,
         contentStyle: { backgroundColor: colors.bg },
@@ -243,5 +299,11 @@ const styles = StyleSheet.create({
   },
   tabIconActive: {
     opacity: 1,
+  },
+  bootLoading: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.bg,
   },
 });

@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
-import { useSignIn, useSignUp } from '@clerk/clerk-expo';
+import { useSignIn, useSignUp, useAuth } from '@clerk/clerk-expo';
 import { isClerkAPIResponseError } from '@clerk/clerk-expo';
 import { Button, ScreenHeader, Banner } from '../../components';
 import { colors, fontSize, spacing, radius } from '../../theme/tokens';
+import { refreshPatientToken } from '../../api/patientAuth';
 
 // Using email_code instead of phone_code for this pass — the Clerk
 // application isn't configured to accept phone number as a sign-in
@@ -16,6 +17,7 @@ import { colors, fontSize, spacing, radius } from '../../theme/tokens';
 export default function PhoneScreen({ navigation }: any) {
   const { signIn, isLoaded: signInLoaded } = useSignIn();
   const { signUp, isLoaded: signUpLoaded } = useSignUp();
+  const { getToken } = useAuth();
   const [email, setEmail] = useState('');
   const [err, setErr] = useState('');
   const [loading, setLoading] = useState(false);
@@ -43,6 +45,29 @@ export default function PhoneScreen({ navigation }: any) {
       await signIn.prepareFirstFactor({ strategy: 'email_code', emailAddressId: emailFactor.emailAddressId });
       navigation.navigate('OTP', { email: clean, flow: 'signIn' });
     } catch (signInErr) {
+      // RootNavigator should route an already-signed-in device straight
+      // to MainTabs/LinkWR and never show this screen at all — but if it
+      // lands here anyway (a stale nav state, a manual back-navigation),
+      // don't dead-end on Clerk's "You're already signed in" error: try to
+      // mint a WelliPay token from the existing session and continue.
+      const alreadySignedIn =
+        isClerkAPIResponseError(signInErr) &&
+        signInErr.errors.some((e) => e.code === 'session_exists');
+      if (alreadySignedIn) {
+        try {
+          const clerkToken = await getToken();
+          if (clerkToken && (await refreshPatientToken(clerkToken))) {
+            navigation.reset({ index: 0, routes: [{ name: 'MainTabs' }] });
+          } else {
+            navigation.reset({ index: 0, routes: [{ name: 'LinkWR' }] });
+          }
+        } catch {
+          navigation.reset({ index: 0, routes: [{ name: 'LinkWR' }] });
+        }
+        setLoading(false);
+        return;
+      }
+
       // Clerk raises "form_identifier_not_found" when no account exists
       // for this email yet — that's the expected case for a new patient,
       // so fall back to sign-up rather than surfacing it as an error.
