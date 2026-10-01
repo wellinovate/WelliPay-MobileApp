@@ -50,7 +50,15 @@ interface RequestOptions {
 }
 
 export async function patientApiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  const headers: Record<string, string> = {};
+  // Fastify's JSON body parser rejects a request that has no body at all
+  // but still carries Content-Type: application/json (FST_ERR_CTP_EMPTY_
+  // JSON_BODY) — so only set it when there's actually a body to send.
+  // POST /patient/token (see api/patientAuth.ts's refreshPatientToken) is
+  // the one call this app makes with no body at all.
+  if (options.body !== undefined) {
+    headers['Content-Type'] = 'application/json';
+  }
 
   if (options.authorizationOverride) {
     headers.Authorization = options.authorizationOverride;
