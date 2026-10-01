@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { useSignIn, useSignUp } from '@clerk/clerk-expo';
+import { useSignIn, useSignUp, isClerkAPIResponseError } from '@clerk/clerk-expo';
 import { Button, ScreenHeader, Banner, Keypad } from '../../components';
 import { colors, fontSize, spacing, radius } from '../../theme/tokens';
 import { useStore } from '../../state/store';
@@ -40,7 +40,7 @@ export default function OTPScreen({ navigation, route }: any) {
           await setActiveSignIn!({ session: attempt.createdSessionId });
           navigation.navigate('ProfileSetup');
         } else {
-          throw new Error('Verification incomplete — this account may need an additional step.');
+          throw new Error(`Verification incomplete (status: ${attempt.status}). This account may need an additional sign-in step not yet supported here.`);
         }
       } else {
         const attempt = await signUp!.attemptEmailAddressVerification({ code: fullCode });
@@ -48,12 +48,16 @@ export default function OTPScreen({ navigation, route }: any) {
           await setActiveSignUp!({ session: attempt.createdSessionId });
           navigation.navigate('ProfileSetup');
         } else {
-          throw new Error('Verification incomplete — this account may need an additional step.');
+          throw new Error(`Verification incomplete (status: ${attempt.status}). Missing fields: ${JSON.stringify(attempt.missingFields ?? [])}`);
         }
       }
     } catch (err) {
       setError(true);
-      setErrorMsg(err instanceof Error ? err.message : t.otpWrongMsg);
+      if (isClerkAPIResponseError(err)) {
+        setErrorMsg(err.errors.map((e) => `${e.code}: ${e.message}${e.longMessage ? ` — ${e.longMessage}` : ''}`).join(' / '));
+      } else {
+        setErrorMsg(err instanceof Error ? err.message : t.otpWrongMsg);
+      }
       setCode('');
     } finally {
       setVerifying(false);
