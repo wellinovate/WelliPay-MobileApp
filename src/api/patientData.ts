@@ -203,3 +203,48 @@ export async function fetchClaimReconciliation(): Promise<{ items: ApiReconcilia
     '/patient/claims/reconciliation'
   );
 }
+
+export interface ApiEpisodeItem {
+  invoiceId: string;
+  providerInvoiceRef: string;
+  category: string;
+  description: string;
+  date: string;
+  totalCost: { amountMinor: number; currency: string };
+  hmoContribution: { amountMinor: number; currency: string };
+  patientSelfPay: { amountMinor: number; currency: string };
+  paid: { amountMinor: number; currency: string };
+  status: 'cleared' | 'partly_paid' | 'unpaid';
+}
+
+export interface ApiEpisode {
+  episodeRef: string;
+  facilityRef: string;
+  patientRef: string;
+  startDate: string;
+  endDate?: string;
+  status: 'active' | 'completed';
+  items: ApiEpisodeItem[];
+  totalCost: { amountMinor: number; currency: string };
+  hmoCover: { amountMinor: number; currency: string };
+  patientSelfPay: { amountMinor: number; currency: string };
+  patientPaid: { amountMinor: number; currency: string };
+  patientDue: { amountMinor: number; currency: string };
+  depositPaid: { amountMinor: number; currency: string };
+  hmoReceivable: {
+    expected: { amountMinor: number; currency: string };
+    received: { amountMinor: number; currency: string };
+    variance: { amountMinor: number; currency: string };
+    status: 'UNDERPAID' | 'OVERPAID' | 'RECONCILED';
+  };
+}
+
+// EpisodeTimelineScreen: groups the patient's own invoices that a provider
+// tagged with the same metadata.episodeRef (see wellipay-api's episodes.ts)
+// into one "healthcare episode" — nothing simulated client-side. Invoices
+// with no episodeRef tag simply never appear in an episode. depositPaid is
+// always 0 for now — no deposit concept exists in the backend yet.
+export async function fetchEpisodes(): Promise<ApiEpisode[]> {
+  const res = await patientApiRequest<{ items: ApiEpisode[] }>('/patient/episodes');
+  return res.items;
+}
