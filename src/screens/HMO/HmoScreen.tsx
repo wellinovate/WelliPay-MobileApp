@@ -6,18 +6,20 @@ import { colors, fontSize, spacing, radius } from '../../theme/tokens';
 import { useStore } from '../../state/store';
 import { COPY } from '../../state/copy';
 import { NAIRA } from '../../utils/helpers';
-import { fetchEligibilityChecks, ApiEligibilityCheck, fetchHmoPolicies, ApiHmoPolicy } from '../../api/patientData';
+import {
+  fetchEligibilityChecks, ApiEligibilityCheck,
+  fetchHmoPolicies, ApiHmoPolicy,
+  fetchPreAuthorizations, ApiPreAuth,
+} from '../../api/patientData';
 import { NotLinkedError } from '../../api/client';
 
 export default function HmoScreen({ navigation }: any) {
   const store = useStore();
-  const { lang, preAuths } = store;
+  const { lang } = store;
   const t = COPY[lang] || COPY.en;
   const insets = useSafeAreaInsets();
 
   // Real eligibility checks your hospital ran against a payer.
-  // Pre-authorizations below are still demo data — wellipay-api has no
-  // model for those yet.
   const [liveChecks, setLiveChecks] = useState<ApiEligibilityCheck[]>([]);
   const [liveLoading, setLiveLoading] = useState(true);
 
@@ -27,6 +29,12 @@ export default function HmoScreen({ navigation }: any) {
   const [policies, setPolicies] = useState<ApiHmoPolicy[]>([]);
   const [policiesLoading, setPoliciesLoading] = useState(true);
   const [activePolicyId, setActivePolicyId] = useState<string | null>(null);
+
+  // Real pre-authorization requests. Deposits/employer benefits/
+  // reconciliation/episode timelines below are still demo data —
+  // wellipay-api has no model for those yet.
+  const [preAuths, setPreAuths] = useState<ApiPreAuth[]>([]);
+  const [preAuthsLoading, setPreAuthsLoading] = useState(true);
 
   useEffect(() => {
     let active = true;
@@ -55,6 +63,17 @@ export default function HmoScreen({ navigation }: any) {
         if (active) setPolicies([]);
       })
       .finally(() => { if (active) setPoliciesLoading(false); });
+
+    fetchPreAuthorizations()
+      .then(items => { if (active) setPreAuths(items); })
+      .catch(err => {
+        if (active && !(err instanceof NotLinkedError)) {
+          // eslint-disable-next-line no-console
+          console.warn('Failed to load pre-authorizations', err);
+        }
+        if (active) setPreAuths([]);
+      })
+      .finally(() => { if (active) setPreAuthsLoading(false); });
 
     return () => { active = false; };
   }, []);
@@ -167,31 +186,39 @@ export default function HmoScreen({ navigation }: any) {
           </TouchableOpacity>
         </View>
 
-        {preAuths.map(pa => (
-          <Card key={pa.id} style={styles.paCard}>
-            <View style={styles.paRow}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.paFacility}>{pa.facility}</Text>
-                <Text style={styles.paProcedure}>{pa.procedure}</Text>
-                <Text style={styles.paDate}>{pa.requestDate}</Text>
+        {preAuthsLoading ? (
+          <ActivityIndicator color={colors.accent} style={{ marginVertical: spacing.sm }} />
+        ) : preAuths.length === 0 ? (
+          <Text style={{ fontSize: fontSize.xs, color: colors.textTertiary, marginBottom: spacing.md }}>
+            No pre-authorization requests yet.
+          </Text>
+        ) : (
+          preAuths.map(pa => (
+            <Card key={pa.preAuthId} style={styles.paCard}>
+              <View style={styles.paRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.paFacility}>{pa.facilityRef}</Text>
+                  <Text style={styles.paProcedure}>{pa.procedure}</Text>
+                  <Text style={styles.paDate}>{new Date(pa.requestedAt).toLocaleDateString('en-NG', { day: '2-digit', month: 'short', year: 'numeric' })}</Text>
+                </View>
+                <View style={{ alignItems: 'flex-end' }}>
+                  <StatusPill status={pa.status === 'APPROVED' ? 'paid' : pa.status === 'IN_REVIEW' ? 'pending' : 'failed'} />
+                  {pa.approvalCode ? (
+                    <Text style={styles.authCode}>{pa.approvalCode}</Text>
+                  ) : null}
+                </View>
               </View>
-              <View style={{ alignItems: 'flex-end' }}>
-                <StatusPill status={pa.status === 'approved' ? 'paid' : pa.status === 'in_review' ? 'pending' : 'failed'} />
-                {pa.approvalCode ? (
-                  <Text style={styles.authCode}>{pa.approvalCode}</Text>
-                ) : null}
+
+              <Divider style={styles.paDivider} />
+
+              <View style={styles.paCostRow}>
+                <Text style={styles.paCostLabel}>Covered: {NAIRA(pa.coveredAmount.amountMinor / 100)}</Text>
+                <Text style={styles.paCostPatient}>You pay: {NAIRA(pa.patientPortion.amountMinor / 100)}</Text>
               </View>
-            </View>
-
-            <Divider style={styles.paDivider} />
-
-            <View style={styles.paCostRow}>
-              <Text style={styles.paCostLabel}>Covered: {NAIRA(pa.coveredAmount)}</Text>
-              <Text style={styles.paCostPatient}>You pay: {NAIRA(pa.patientPortion)}</Text>
-            </View>
-            {pa.notes ? <Text style={styles.paNotes}>{pa.notes}</Text> : null}
-          </Card>
-        ))}
+              {pa.notes ? <Text style={styles.paNotes}>{pa.notes}</Text> : null}
+            </Card>
+          ))
+        )}
 
         {/* WelliPay Reconcile Card */}
         <Card style={{ marginTop: spacing.md, backgroundColor: '#E8F4F7', borderColor: '#B8D9E0' }}>

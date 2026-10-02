@@ -1,31 +1,56 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, ScrollView, Alert } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TextInput, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScreenHeader, Button, Chip, Card, Banner } from '../../components';
 import { colors, fontSize, spacing, radius } from '../../theme/tokens';
 import { useStore } from '../../state/store';
 import { COPY } from '../../state/copy';
-import { NAIRA, uid } from '../../utils/helpers';
+import { NAIRA } from '../../utils/helpers';
+import { fetchHmoPolicies, ApiHmoPolicy, createPreAuthorization } from '../../api/patientData';
+import { ApiError, NotLinkedError } from '../../api/client';
 
 export default function PreAuthScreen({ navigation }: any) {
   const store = useStore();
-  const { lang, hmoPolicies, activeHmoId, facilities } = store;
+  const { lang, facilities } = store;
   const t = COPY[lang] || COPY.en;
   const insets = useSafeAreaInsets();
 
-  const activePolicy = hmoPolicies.find(p => p.id === activeHmoId) || hmoPolicies[0];
+  // Pulled live rather than from the local store's demo hmoPolicies — a
+  // pre-auth has to reference a real hmoPolicyId that exists in
+  // wellipay-api, which a leftover demo-seed policy wouldn't.
+  const [policies, setPolicies] = useState<ApiHmoPolicy[]>([]);
+  const [policiesLoading, setPoliciesLoading] = useState(true);
+  const [activePolicy, setActivePolicy] = useState<ApiHmoPolicy | undefined>(undefined);
+
+  useEffect(() => {
+    let active = true;
+    fetchHmoPolicies()
+      .then(items => {
+        if (!active) return;
+        setPolicies(items);
+        setActivePolicy(items[0]);
+      })
+      .catch(() => { if (active) setPolicies([]); })
+      .finally(() => { if (active) setPoliciesLoading(false); });
+    return () => { active = false; };
+  }, []);
 
   const [selectedFacility, setSelectedFacility] = useState(facilities[0].name);
   const [procedure, setProcedure] = useState('');
   const [estimatedCost, setEstimatedCost] = useState('150000');
   const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   const numCost = parseInt(estimatedCost.replace(/[^0-9]/g, '')) || 0;
   const coPayPct = activePolicy ? activePolicy.coPayPercent : 10;
   const patientPortion = Math.round((numCost * coPayPct) / 100);
   const coveredAmount = Math.max(0, numCost - patientPortion);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+    if (!activePolicy) {
+      setError('Add an HMO card before requesting a pre-authorization.');
+      return;
+    }
     if (!procedure.trim()) {
       setError('Please specify the medical procedure or test.');
       return;
@@ -34,27 +59,49 @@ export default function PreAuthScreen({ navigation }: any) {
       setError('Please enter a valid estimated cost.');
       return;
     }
+    setError('');
+    setSubmitting(true);
+    try {
+      const created = await createPreAuthorization({
+        hmoPolicyId: activePolicy.hmoPolicyId,
+        facilityRef: selectedFacility,
+        procedure: procedure.trim(),
+        estimatedCostMinor: numCost * 100,
+      });
 
-    const newPreAuth = {
-      id: 'pa_' + uid().toLowerCase(),
-      hmoPolicyId: activePolicy ? activePolicy.id : 'hmo1',
-      facility: selectedFacility,
-      procedure: procedure.trim(),
-      estimatedCost: numCost,
-      coveredAmount,
-      patientPortion,
-      status: 'approved' as const,
-      requestDate: 'Today',
-      approvalCode: 'AUTH-HYG-' + Math.floor(1000 + Math.random() * 9000),
-      notes: `Pre-authorization approved by ${activePolicy?.provider || 'HMO'}. Valid for 14 days.`,
-    };
+      // Also mirror into the local store, in case another screen reads
+      // store.preAuths later — HmoScreen itself now fetches its own list
+      // live from the API instead of this.
+      store.submitPreAuth({
+        id: created.preAuthId,
+        hmoPolicyId: created.hmoPolicyId,
+        facility: created.facilityRef,
+        procedure: created.procedure,
+        estimatedCost: created.estimatedCost.amountMinor / 100,
+        coveredAmount: created.coveredAmount.amountMinor / 100,
+        patientPortion: created.patientPortion.amountMinor / 100,
+        status: created.status === 'APPROVED' ? 'approved' : created.status === 'DECLINED' ? 'declined' : 'in_review',
+        requestDate: 'Today',
+        approvalCode: created.approvalCode,
+        notes: created.notes,
+      });
 
-    store.submitPreAuth(newPreAuth);
-    Alert.alert(
-      'Pre-Authorization Approved!',
-      `${activePolicy?.provider || 'HMO'} has approved ${NAIRA(coveredAmount)} for ${procedure} at ${selectedFacility}. Your co-pay: ${NAIRA(patientPortion)}.`,
-      [{ text: 'View Pre-Auths', onPress: () => navigation.goBack() }]
-    );
+      Alert.alert(
+        'Pre-Authorization Approved!',
+        `${activePolicy.provider} has approved ${NAIRA(created.coveredAmount.amountMinor / 100)} for ${procedure} at ${selectedFacility}. Your co-pay: ${NAIRA(created.patientPortion.amountMinor / 100)}.`,
+        [{ text: 'View Pre-Auths', onPress: () => navigation.goBack() }]
+      );
+    } catch (err) {
+      if (err instanceof NotLinkedError) {
+        setError('Link your WelliRecord account first.');
+      } else if (err instanceof ApiError) {
+        setError(err.message);
+      } else {
+        setError('Could not submit the pre-authorization. Check your connection and try again.');
+      }
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -66,8 +113,16 @@ export default function PreAuthScreen({ navigation }: any) {
 
         <Card style={styles.policyCard}>
           <Text style={styles.kicker}>Active HMO Policy</Text>
-          <Text style={styles.hmoName}>{activePolicy?.provider}</Text>
-          <Text style={styles.hmoSub}>{activePolicy?.policyNo} · {activePolicy?.planTier} ({coPayPct}% Co-Pay)</Text>
+          {policiesLoading ? (
+            <ActivityIndicator color={colors.accentDark} style={{ marginTop: spacing.xs }} />
+          ) : activePolicy ? (
+            <>
+              <Text style={styles.hmoName}>{activePolicy.provider}</Text>
+              <Text style={styles.hmoSub}>{activePolicy.policyNo} · {activePolicy.planTier} ({coPayPct}% Co-Pay)</Text>
+            </>
+          ) : (
+            <Text style={styles.hmoSub}>No HMO card on file — add one before requesting a pre-authorization.</Text>
+          )}
         </Card>
 
         <View style={styles.field}>
@@ -128,7 +183,13 @@ export default function PreAuthScreen({ navigation }: any) {
       </ScrollView>
 
       <View style={styles.footer}>
-        <Button label="Request Instant Approval" fullWidth onPress={handleSubmit} />
+        <Button
+          label="Request Instant Approval"
+          fullWidth
+          loading={submitting}
+          disabled={policiesLoading || !activePolicy}
+          onPress={handleSubmit}
+        />
       </View>
     </View>
   );

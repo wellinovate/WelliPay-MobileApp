@@ -132,3 +132,42 @@ export async function createHmoPolicy(input: CreateHmoPolicyInput): Promise<ApiH
     idempotencyKey: newIdempotencyKey(),
   });
 }
+
+export interface ApiPreAuth {
+  preAuthId: string;
+  patientRef: string;
+  hmoPolicyId: string;
+  facilityRef: string;
+  procedure: string;
+  estimatedCost: { amountMinor: number; currency: string };
+  coveredAmount: { amountMinor: number; currency: string };
+  patientPortion: { amountMinor: number; currency: string };
+  status: 'APPROVED' | 'IN_REVIEW' | 'DECLINED';
+  approvalCode?: string;
+  notes?: string;
+  requestedAt: string;
+}
+
+export interface CreatePreAuthInput {
+  hmoPolicyId: string;
+  facilityRef: string;
+  procedure: string;
+  estimatedCostMinor: number;
+}
+
+export async function fetchPreAuthorizations(): Promise<ApiPreAuth[]> {
+  const res = await patientApiRequest<ListResponse<ApiPreAuth>>('/patient/pre-authorizations');
+  return res.items;
+}
+
+// PreAuthScreen's "Request Instant Approval". wellipay-api resolves it
+// synchronously (no real payer integration exists yet — see the schema
+// comment on PreAuthorization) and returns the final decision in the
+// response, same as createHmoPolicy above.
+export async function createPreAuthorization(input: CreatePreAuthInput): Promise<ApiPreAuth> {
+  return patientApiRequest<ApiPreAuth>('/patient/pre-authorizations', {
+    method: 'POST',
+    body: input,
+    idempotencyKey: newIdempotencyKey(),
+  });
+}
