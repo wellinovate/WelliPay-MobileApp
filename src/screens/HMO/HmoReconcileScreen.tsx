@@ -1,36 +1,46 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
-import { ScreenHeader, Card, Button, Divider, StatusPill, Banner } from '../../components';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
+import { ScreenHeader, Card, Banner } from '../../components';
 import { colors, fontSize, spacing, radius } from '../../theme/tokens';
 import { useStore } from '../../state/store';
 import { COPY } from '../../state/copy';
 import { NAIRA } from '../../utils/helpers';
-import { hapticLight, hapticSuccess } from '../../utils/haptics';
+import { fetchClaimReconciliation, ApiReconciliationItem, ApiReconciliationTotals } from '../../api/patientData';
+import { NotLinkedError } from '../../api/client';
 
 export default function HmoReconcileScreen({ navigation }: any) {
-  const { lang, bills, recordHmoRemittance } = useStore();
+  const { lang } = useStore();
   const t = COPY[lang] || COPY.en;
 
-  const reconciledBills = bills.filter(b => b.hasSplit && b.reconciliation);
+  // Real data: compares what each of the patient's HMO claims was
+  // approved for against what has actually been remitted, derived
+  // server-side from Claim + Payment — nothing simulated here anymore.
+  const [items, setItems] = useState<ApiReconciliationItem[]>([]);
+  const [totals, setTotals] = useState<ApiReconciliationTotals | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [notLinked, setNotLinked] = useState(false);
 
-  const totalExpected = reconciledBills.reduce((acc, b) => acc + (b.reconciliation?.expectedHmo || 0), 0);
-  const totalReceived = reconciledBills.reduce((acc, b) => acc + (b.reconciliation?.receivedHmo || 0), 0);
-  const totalVariance = reconciledBills.reduce((acc, b) => acc + (b.reconciliation?.variance || 0), 0);
+  useEffect(() => {
+    let active = true;
+    fetchClaimReconciliation()
+      .then(res => {
+        if (!active) return;
+        setItems(res.items);
+        setTotals(res.totals);
+      })
+      .catch(err => {
+        if (!active) return;
+        if (err instanceof NotLinkedError) setNotLinked(true);
+        setItems([]);
+        setTotals(null);
+      })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, []);
 
-  const [simulatedBillId, setSimulatedBillId] = useState<string | null>(null);
-
-  const handleSimulateRemittance = (billId: string, currentExpected: number) => {
-    hapticLight();
-    // Simulate HMO paying ₦5,000 less (underpayment variance)
-    const paid = currentExpected - 5000;
-    recordHmoRemittance(billId, paid);
-    hapticSuccess();
-    setSimulatedBillId(billId);
-    Alert.alert(
-      'Remittance Recorded',
-      `HMO remitted ${NAIRA(paid)} of expected ${NAIRA(currentExpected)}. ₦5,000 underpayment logged to provider receivable ledger.`
-    );
-  };
+  const totalExpected = (totals?.totalExpectedMinor ?? 0) / 100;
+  const totalReceived = (totals?.totalReceivedMinor ?? 0) / 100;
+  const totalVariance = (totals?.totalVarianceMinor ?? 0) / 100;
 
   return (
     <View style={styles.screen}>
@@ -39,98 +49,89 @@ export default function HmoReconcileScreen({ navigation }: any) {
       <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
         {/* Hero Card */}
         <Card style={styles.heroCard}>
-          <Text style={styles.kicker}>PROVIDER SETTLEMENT AUDIT</Text>
+          <Text style={styles.kicker}>YOUR HMO CLAIMS</Text>
           <Text style={styles.heroTitle}>HMO Remittance & Variance Tracker</Text>
           <Text style={styles.heroSub}>
-            WelliPay Reconcile™ detects underpayments between approved HMO claims and actual bank remittances.
+            Compares what your HMO approved on each claim against what's actually been remitted to your hospital.
           </Text>
         </Card>
 
-        {/* Aggregated Variance Metrics */}
-        <View style={styles.metricsGrid}>
-          <Card style={styles.metricCard}>
-            <Text style={styles.metricLabel}>Expected HMO Remittance</Text>
-            <Text style={styles.metricVal}>{NAIRA(totalExpected)}</Text>
-          </Card>
-          <Card style={styles.metricCard}>
-            <Text style={styles.metricLabel}>Received to Bank</Text>
-            <Text style={[styles.metricVal, { color: colors.accent }]}>{NAIRA(totalReceived)}</Text>
-          </Card>
-        </View>
+        {notLinked ? (
+          <Banner message="Link your WelliRecord account to see your claim reconciliation." variant="warn" style={{ marginBottom: spacing.lg }} />
+        ) : loading ? (
+          <ActivityIndicator color={colors.accent} style={{ marginVertical: spacing.lg }} />
+        ) : items.length === 0 ? (
+          <Text style={{ fontSize: fontSize.xs, color: colors.textTertiary, marginBottom: spacing.lg }}>
+            No approved HMO claims on file yet.
+          </Text>
+        ) : (
+          <>
+            {/* Aggregated Variance Metrics */}
+            <View style={styles.metricsGrid}>
+              <Card style={styles.metricCard}>
+                <Text style={styles.metricLabel}>Expected HMO Remittance</Text>
+                <Text style={styles.metricVal}>{NAIRA(totalExpected)}</Text>
+              </Card>
+              <Card style={styles.metricCard}>
+                <Text style={styles.metricLabel}>Received to Bank</Text>
+                <Text style={[styles.metricVal, { color: colors.accent }]}>{NAIRA(totalReceived)}</Text>
+              </Card>
+            </View>
 
-        {totalVariance > 0 && (
-          <Banner
-            message={`₦${totalVariance.toLocaleString()} Total HMO Variance: Flagged as provider receivable awaiting dispute settlement.`}
-            variant="warn"
-            style={{ marginBottom: spacing.lg }}
-          />
+            {totalVariance > 0 && (
+              <Banner
+                message={`${NAIRA(totalVariance)} Total HMO Variance: underpaid relative to what was approved.`}
+                variant="warn"
+                style={{ marginBottom: spacing.lg }}
+              />
+            )}
+
+            <Text style={styles.sectionTitle}>Adjudicated Claims & Settlements</Text>
+
+            {items.map(item => {
+              const expected = item.expectedAmount.amountMinor / 100;
+              const received = item.receivedAmount.amountMinor / 100;
+              const variance = item.variance.amountMinor / 100;
+              const isUnderpaid = item.reconciliationStatus === 'UNDERPAID';
+
+              return (
+                <Card key={item.claimId} style={[styles.claimCard, isUnderpaid && styles.claimCardUnderpaid]}>
+                  <View style={styles.claimHeader}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.facilityText}>{item.facilityRef}</Text>
+                      <Text style={styles.billRefText}>{item.providerInvoiceRef ?? item.invoiceId} · {item.description ?? 'Encounter'}</Text>
+                    </View>
+                    <View style={[
+                      styles.statusBadge,
+                      isUnderpaid ? styles.statusUnderpaid : styles.statusBalanced,
+                    ]}>
+                      <Text style={[styles.statusBadgeText, isUnderpaid ? styles.textUnderpaid : styles.textBalanced]}>
+                        {isUnderpaid ? '⚠ UNDERPAID' : item.reconciliationStatus === 'OVERPAID' ? '↑ OVERPAID' : '✓ RECONCILED'}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.tableRow}>
+                    <Text style={[styles.tableLabel, { color: colors.accentDark }]}>HMO Approved Claim:</Text>
+                    <Text style={[styles.tableVal, { color: colors.accentDark, fontWeight: '700' }]}>{NAIRA(expected)}</Text>
+                  </View>
+
+                  <View style={styles.tableRow}>
+                    <Text style={styles.tableLabel}>HMO Remittance Received:</Text>
+                    <Text style={[styles.tableVal, { fontWeight: '700' }]}>{NAIRA(received)}</Text>
+                  </View>
+
+                  {isUnderpaid ? (
+                    <View style={[styles.tableRow, styles.varianceRow]}>
+                      <Text style={styles.varianceLabel}>HMO Underpayment Variance:</Text>
+                      <Text style={styles.varianceAmount}>{NAIRA(variance)}</Text>
+                    </View>
+                  ) : null}
+                </Card>
+              );
+            })}
+          </>
         )}
-
-        {/* Reconciliation Items */}
-        <Text style={styles.sectionTitle}>Adjudicated Claims & Settlements</Text>
-
-        {reconciledBills.map(bill => {
-          const rec = bill.reconciliation!;
-          const isUnderpaid = rec.variance > 0;
-
-          return (
-            <Card key={bill.id} style={[styles.claimCard, isUnderpaid && styles.claimCardUnderpaid]}>
-              <View style={styles.claimHeader}>
-                <View>
-                  <Text style={styles.facilityText}>{bill.facility}</Text>
-                  <Text style={styles.billRefText}>{bill.billNo} · Encounter Care</Text>
-                </View>
-                <View style={[styles.statusBadge, isUnderpaid ? styles.statusUnderpaid : styles.statusBalanced]}>
-                  <Text style={[styles.statusBadgeText, isUnderpaid ? styles.textUnderpaid : styles.textBalanced]}>
-                    {isUnderpaid ? '⚠ UNDERPAID' : '✓ RECONCILED'}
-                  </Text>
-                </View>
-              </View>
-
-              <Divider style={{ marginVertical: spacing.sm }} />
-
-              <View style={styles.tableRow}>
-                <Text style={styles.tableLabel}>Total Encounter Cost:</Text>
-                <Text style={styles.tableVal}>{NAIRA(bill.amountTotal)}</Text>
-              </View>
-
-              <View style={styles.tableRow}>
-                <Text style={styles.tableLabel}>Patient Self-Pay (PSP):</Text>
-                <Text style={styles.tableVal}>{NAIRA(bill.patientSelfPay || bill.amountDue)}</Text>
-              </View>
-
-              <View style={styles.tableRow}>
-                <Text style={[styles.tableLabel, { color: colors.accentDark }]}>HMO Approved Claim:</Text>
-                <Text style={[styles.tableVal, { color: colors.accentDark, fontWeight: '700' }]}>
-                  {NAIRA(rec.expectedHmo)}
-                </Text>
-              </View>
-
-              <View style={styles.tableRow}>
-                <Text style={styles.tableLabel}>HMO Remittance Received:</Text>
-                <Text style={[styles.tableVal, { fontWeight: '700' }]}>
-                  {NAIRA(rec.receivedHmo)}
-                </Text>
-              </View>
-
-              {isUnderpaid ? (
-                <View style={[styles.tableRow, styles.varianceRow]}>
-                  <Text style={styles.varianceLabel}>HMO Underpayment Variance:</Text>
-                  <Text style={styles.varianceAmount}>{NAIRA(rec.variance)}</Text>
-                </View>
-              ) : null}
-
-              <View style={styles.claimFooter}>
-                <Button
-                  label={isUnderpaid ? "Resolve HMO Underpayment" : "Simulate Remittance Shortfall"}
-                  variant={isUnderpaid ? "primary" : "secondary"}
-                  onPress={() => handleSimulateRemittance(bill.id, rec.expectedHmo)}
-                  style={{ marginTop: spacing.sm }}
-                />
-              </View>
-            </Card>
-          );
-        })}
       </ScrollView>
     </View>
   );
@@ -164,7 +165,7 @@ const styles = StyleSheet.create({
     borderColor: '#FCA5A5',
     backgroundColor: '#FFFBFB',
   },
-  claimHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+  claimHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: spacing.sm },
   facilityText: { fontSize: fontSize.base, fontWeight: '700', color: colors.textPrimary },
   billRefText: { fontSize: fontSize.xs, color: colors.textTertiary, marginTop: 2 },
   statusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: radius.full },
@@ -185,5 +186,4 @@ const styles = StyleSheet.create({
   },
   varianceLabel: { fontSize: fontSize.xs, fontWeight: '700', color: colors.danger },
   varianceAmount: { fontSize: fontSize.sm, fontWeight: '800', color: colors.danger },
-  claimFooter: { marginTop: spacing.xs },
 });

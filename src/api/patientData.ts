@@ -171,3 +171,35 @@ export async function createPreAuthorization(input: CreatePreAuthInput): Promise
     idempotencyKey: newIdempotencyKey(),
   });
 }
+
+export interface ApiReconciliationItem {
+  claimId: string;
+  providerClaimRef: string;
+  invoiceId: string;
+  providerInvoiceRef?: string;
+  description?: string;
+  facilityRef: string;
+  payerRef: string;
+  claimStatus: string;
+  expectedAmount: { amountMinor: number; currency: string };
+  receivedAmount: { amountMinor: number; currency: string };
+  variance: { amountMinor: number; currency: string };
+  reconciliationStatus: 'UNDERPAID' | 'OVERPAID' | 'RECONCILED';
+  decidedAt?: string;
+}
+
+export interface ApiReconciliationTotals {
+  totalExpectedMinor: number;
+  totalReceivedMinor: number;
+  totalVarianceMinor: number;
+}
+
+// HmoReconcileScreen ("WelliPay Reconcile™"): compares what an HMO
+// approved on each of the patient's claims against what has actually been
+// remitted for the matching invoice — derived entirely from existing
+// Claim + Payment data server-side, nothing simulated client-side.
+export async function fetchClaimReconciliation(): Promise<{ items: ApiReconciliationItem[]; totals: ApiReconciliationTotals }> {
+  return patientApiRequest<{ items: ApiReconciliationItem[]; totals: ApiReconciliationTotals; nextCursor?: string }>(
+    '/patient/claims/reconciliation'
+  );
+}
