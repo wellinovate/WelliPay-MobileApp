@@ -6,21 +6,27 @@ import { colors, fontSize, spacing, radius } from '../../theme/tokens';
 import { useStore } from '../../state/store';
 import { COPY } from '../../state/copy';
 import { NAIRA } from '../../utils/helpers';
-import { fetchEligibilityChecks, ApiEligibilityCheck } from '../../api/patientData';
+import { fetchEligibilityChecks, ApiEligibilityCheck, fetchHmoPolicies, ApiHmoPolicy } from '../../api/patientData';
 import { NotLinkedError } from '../../api/client';
 
 export default function HmoScreen({ navigation }: any) {
   const store = useStore();
-  const { lang, hmoPolicies, activeHmoId, preAuths } = store;
+  const { lang, preAuths } = store;
   const t = COPY[lang] || COPY.en;
   const insets = useSafeAreaInsets();
 
-  // Real eligibility checks your hospital ran against a payer, loaded
-  // alongside the demo HMO policy cards below. wellipay-api has no model
-  // for the policy/annual-limit/co-pay cards or pre-authorizations below —
-  // only for the eligibility check itself — so only this section is real.
+  // Real eligibility checks your hospital ran against a payer.
+  // Pre-authorizations below are still demo data — wellipay-api has no
+  // model for those yet.
   const [liveChecks, setLiveChecks] = useState<ApiEligibilityCheck[]>([]);
   const [liveLoading, setLiveLoading] = useState(true);
+
+  // Real HMO policy cards (provider/policyNo/annual limit/co-pay), added
+  // either by the patient via AddHmoScreen or by provider staff.
+  // Replaces the old hardcoded "Demo health insurance" section.
+  const [policies, setPolicies] = useState<ApiHmoPolicy[]>([]);
+  const [policiesLoading, setPoliciesLoading] = useState(true);
+  const [activePolicyId, setActivePolicyId] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -34,6 +40,22 @@ export default function HmoScreen({ navigation }: any) {
         if (active) setLiveChecks([]);
       })
       .finally(() => { if (active) setLiveLoading(false); });
+
+    fetchHmoPolicies()
+      .then(items => {
+        if (!active) return;
+        setPolicies(items);
+        if (items.length > 0) setActivePolicyId(items[0].hmoPolicyId);
+      })
+      .catch(err => {
+        if (active && !(err instanceof NotLinkedError)) {
+          // eslint-disable-next-line no-console
+          console.warn('Failed to load HMO policies', err);
+        }
+        if (active) setPolicies([]);
+      })
+      .finally(() => { if (active) setPoliciesLoading(false); });
+
     return () => { active = false; };
   }, []);
 
@@ -76,56 +98,66 @@ export default function HmoScreen({ navigation }: any) {
           )}
         </View>
 
-        <Text style={styles.sectionTitle}>Demo health insurance</Text>
+        <Text style={styles.sectionTitle}>Your HMO cards</Text>
 
-        {hmoPolicies.map(policy => {
-          const isActive = policy.id === activeHmoId;
-          const remaining = Math.max(0, policy.annualLimit - policy.usedAmount);
-          return (
-            <TouchableOpacity
-              key={policy.id}
-              activeOpacity={0.8}
-              onPress={() => store.setActiveHmo(policy.id)}
-            >
-              <Card style={[styles.policyCard, isActive && styles.policyCardActive]}>
-                <View style={styles.cardHeader}>
-                  <View>
-                    <Text style={styles.providerName}>{policy.provider}</Text>
-                    <Text style={styles.policyNo}>{policy.policyNo}</Text>
+        {policiesLoading ? (
+          <ActivityIndicator color={colors.accent} style={{ marginVertical: spacing.sm }} />
+        ) : policies.length === 0 ? (
+          <Text style={{ fontSize: fontSize.xs, color: colors.textTertiary, marginBottom: spacing.md }}>
+            No HMO card on file yet. Add one below.
+          </Text>
+        ) : (
+          policies.map(policy => {
+            const isActive = policy.hmoPolicyId === activePolicyId;
+            const annualLimit = policy.annualLimit.amountMinor / 100;
+            const usedAmount = policy.usedAmount.amountMinor / 100;
+            const remaining = Math.max(0, annualLimit - usedAmount);
+            return (
+              <TouchableOpacity
+                key={policy.hmoPolicyId}
+                activeOpacity={0.8}
+                onPress={() => setActivePolicyId(policy.hmoPolicyId)}
+              >
+                <Card style={[styles.policyCard, isActive && styles.policyCardActive]}>
+                  <View style={styles.cardHeader}>
+                    <View>
+                      <Text style={styles.providerName}>{policy.provider}</Text>
+                      <Text style={styles.policyNo}>{policy.policyNo}</Text>
+                    </View>
+                    <View style={styles.badge}>
+                      <Text style={styles.badgeText}>{policy.planTier}</Text>
+                    </View>
                   </View>
-                  <View style={styles.badge}>
-                    <Text style={styles.badgeText}>{policy.planTier}</Text>
+
+                  <View style={styles.enrolleeRow}>
+                    <Text style={styles.enrolleeLabel}>Enrollee: </Text>
+                    <Text style={styles.enrolleeName}>{policy.enrolleeName}</Text>
+                    <Text style={styles.coPayTag}>{policy.coPayPercent}% Co-Pay</Text>
                   </View>
-                </View>
 
-                <View style={styles.enrolleeRow}>
-                  <Text style={styles.enrolleeLabel}>Enrollee: </Text>
-                  <Text style={styles.enrolleeName}>{policy.enrolleeName}</Text>
-                  <Text style={styles.coPayTag}>{policy.coPayPercent}% Co-Pay</Text>
-                </View>
+                  <Divider style={styles.divider} />
 
-                <Divider style={styles.divider} />
-
-                <View style={styles.limitInfo}>
-                  <Text style={styles.limitKicker}>Annual Benefit Limit</Text>
-                  <View style={styles.limitRow}>
-                    <Text style={styles.usedText}>{NAIRA(policy.usedAmount)} used</Text>
-                    <Text style={styles.limitText}>Limit: {NAIRA(policy.annualLimit)}</Text>
+                  <View style={styles.limitInfo}>
+                    <Text style={styles.limitKicker}>Annual Benefit Limit</Text>
+                    <View style={styles.limitRow}>
+                      <Text style={styles.usedText}>{NAIRA(usedAmount)} used</Text>
+                      <Text style={styles.limitText}>Limit: {NAIRA(annualLimit)}</Text>
+                    </View>
+                    <ProgressBar
+                      value={usedAmount}
+                      max={annualLimit}
+                      color={annualLimit > 0 && usedAmount / annualLimit > 0.8 ? colors.danger : colors.accent}
+                      style={styles.pb}
+                    />
+                    <Text style={styles.remainingText}>
+                      {NAIRA(remaining)} available for medical claims
+                    </Text>
                   </View>
-                  <ProgressBar
-                    value={policy.usedAmount}
-                    max={policy.annualLimit}
-                    color={policy.usedAmount / policy.annualLimit > 0.8 ? colors.danger : colors.accent}
-                    style={styles.pb}
-                  />
-                  <Text style={styles.remainingText}>
-                    {NAIRA(remaining)} available for medical claims
-                  </Text>
-                </View>
-              </Card>
-            </TouchableOpacity>
-          );
-        })}
+                </Card>
+              </TouchableOpacity>
+            );
+          })
+        )}
 
         {/* Pre-Authorizations */}
         <View style={styles.preAuthHeader}>

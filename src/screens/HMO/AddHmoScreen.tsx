@@ -5,7 +5,8 @@ import { ScreenHeader, Button, Chip, Banner } from '../../components';
 import { colors, fontSize, spacing, radius } from '../../theme/tokens';
 import { useStore } from '../../state/store';
 import { COPY } from '../../state/copy';
-import { uid } from '../../utils/helpers';
+import { createHmoPolicy } from '../../api/patientData';
+import { ApiError, NotLinkedError } from '../../api/client';
 
 export default function AddHmoScreen({ navigation }: any) {
   const store = useStore();
@@ -31,30 +32,62 @@ export default function AddHmoScreen({ navigation }: any) {
   const [selectedTier, setSelectedTier] = useState('Silver');
   const [selectedCoPay, setSelectedCoPay] = useState(10);
   const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
 
-  const handleSave = () => {
+  // Same tiers the demo data used, now expressed in kobo (wellipay-api
+  // stores every amount in integer minor units) rather than naira.
+  const annualLimitNaira =
+    selectedTier === 'Executive' ? 3000000 : selectedTier === 'Gold' ? 2000000 : 1200000;
+
+  const handleSave = async () => {
     if (!policyNo.trim()) {
       setError('Please enter your HMO Policy or Enrollee number.');
       return;
     }
+    setError('');
+    setSaving(true);
+    try {
+      const created = await createHmoPolicy({
+        provider: selectedProvider,
+        policyNo: policyNo.trim().toUpperCase(),
+        enrolleeName: enrolleeName.trim(),
+        planTier: `${selectedTier} Care`,
+        coPayPercent: selectedCoPay,
+        annualLimitMinor: annualLimitNaira * 100,
+      });
 
-    const newPolicy = {
-      id: 'hmo_' + uid().toLowerCase(),
-      provider: selectedProvider,
-      policyNo: policyNo.trim().toUpperCase(),
-      enrolleeName: enrolleeName.trim(),
-      planTier: `${selectedTier} Care`,
-      coPayPercent: selectedCoPay,
-      annualLimit: selectedTier === 'Executive' ? 3000000 : selectedTier === 'Gold' ? 2000000 : 1200000,
-      usedAmount: 0,
-      status: 'active' as const,
-      expiryDate: '31 Dec 2026',
-      coveredPersons: ['self'],
-    };
+      // Mirror it into the local store too, so the rest of the app (which
+      // still reads demo HMO state elsewhere, e.g. bill tariff adjudication)
+      // sees it immediately without waiting on a refetch.
+      store.addHmoPolicy({
+        id: created.hmoPolicyId,
+        provider: created.provider,
+        policyNo: created.policyNo,
+        enrolleeName: created.enrolleeName,
+        planTier: created.planTier,
+        coPayPercent: created.coPayPercent,
+        annualLimit: created.annualLimit.amountMinor / 100,
+        usedAmount: created.usedAmount.amountMinor / 100,
+        status: 'active',
+        expiryDate: created.expiryDate ?? '31 Dec 2026',
+        coveredPersons: ['self'],
+      });
 
-    store.addHmoPolicy(newPolicy);
-    Alert.alert('HMO Verified', `${selectedProvider} policy ${policyNo} has been linked to your account.`);
-    navigation.goBack();
+      Alert.alert('HMO Verified', `${selectedProvider} policy ${policyNo} has been linked to your account.`);
+      navigation.goBack();
+    } catch (err) {
+      if (err instanceof NotLinkedError) {
+        setError('Link your WelliRecord account first before adding an HMO card.');
+      } else if (err instanceof ApiError && err.code === 'policy_already_exists') {
+        setError('A card with that policy number is already on your account.');
+      } else if (err instanceof ApiError) {
+        setError(err.message);
+      } else {
+        setError('Could not save your HMO card. Check your connection and try again.');
+      }
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -134,7 +167,7 @@ export default function AddHmoScreen({ navigation }: any) {
       </ScrollView>
 
       <View style={styles.footer}>
-        <Button label="Verify & Link HMO" fullWidth onPress={handleSave} />
+        <Button label="Verify & Link HMO" fullWidth loading={saving} onPress={handleSave} />
       </View>
     </View>
   );

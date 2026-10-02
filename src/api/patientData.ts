@@ -1,4 +1,4 @@
-import { patientApiRequest } from './client';
+import { patientApiRequest, newIdempotencyKey } from './client';
 
 // Mirrors wellipay-api's serializeInvoice/serializeFundingRequest/
 // serializeEligibilityCheck/serializeConsent (src/routes/patientData.ts).
@@ -61,6 +61,33 @@ export interface ApiConsent {
   recordedAt: string;
 }
 
+export interface ApiHmoPolicy {
+  hmoPolicyId: string;
+  patientRef: string;
+  provider: string;
+  policyNo: string;
+  enrolleeName: string;
+  planTier: string;
+  coPayPercent: number;
+  annualLimit: { amountMinor: number; currency: string };
+  usedAmount: { amountMinor: number; currency: string };
+  status: 'ACTIVE' | 'PENDING' | 'EXPIRED';
+  expiryDate?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateHmoPolicyInput {
+  provider: string;
+  policyNo: string;
+  enrolleeName: string;
+  planTier: string;
+  coPayPercent: number;
+  annualLimitMinor: number;
+  currency?: string;
+  expiryDate?: string;
+}
+
 interface ListResponse<T> {
   items: T[];
   nextCursor?: string;
@@ -88,4 +115,20 @@ export async function fetchEligibilityChecks(): Promise<ApiEligibilityCheck[]> {
 export async function fetchFinancialConsents(): Promise<ApiConsent[]> {
   const res = await patientApiRequest<ListResponse<ApiConsent>>('/patient/financial-consents');
   return res.items;
+}
+
+export async function fetchHmoPolicies(): Promise<ApiHmoPolicy[]> {
+  const res = await patientApiRequest<ListResponse<ApiHmoPolicy>>('/patient/hmo-policies');
+  return res.items;
+}
+
+// AddHmoScreen's "Verify & Link HMO" — records the patient's own HMO card.
+// currency defaults to NGN since that's the only currency the app's amount
+// pickers (and NAIRA()) support today.
+export async function createHmoPolicy(input: CreateHmoPolicyInput): Promise<ApiHmoPolicy> {
+  return patientApiRequest<ApiHmoPolicy>('/patient/hmo-policies', {
+    method: 'POST',
+    body: { currency: 'NGN', ...input },
+    idempotencyKey: newIdempotencyKey(),
+  });
 }
