@@ -125,6 +125,15 @@ export default function HomeScreen({ navigation }: any) {
           </TouchableOpacity>
 
           <TouchableOpacity
+            style={{backgroundColor:colors.surfaceAlt,padding:spacing.md,borderRadius:radius.sm,marginTop:spacing.sm}}
+            activeOpacity={0.7}
+            onPress={() => navigation.navigate('Prescriptions')}
+          >
+            <Text style={{fontSize:fontSize.sm,fontWeight:'700',color:colors.textPrimary}}>💊 My prescriptions</Text>
+            <Text style={{fontSize:fontSize.xs,color:colors.textSecondary,marginTop:2}}>Send to a pharmacy · refills · order tracking</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
             style={{backgroundColor:'#F0FDF4',padding:spacing.md,borderRadius:radius.sm,borderColor:'#BBF7D0',borderWidth:1,marginTop:spacing.sm}}
             activeOpacity={0.7}
             onPress={() => navigation.navigate('Results')}

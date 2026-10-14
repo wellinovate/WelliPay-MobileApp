@@ -55,6 +55,8 @@ export type RootStackParamList = {
   TransactionDetail: { reference: string };
   Reminders: undefined;
   SavedCards: undefined;
+  Prescriptions: undefined;
+  PharmacyOrders: undefined;
   WalletTopUp: undefined;
   GuestPay: undefined;
   HmoReconcile: { billId?: string } | undefined;
