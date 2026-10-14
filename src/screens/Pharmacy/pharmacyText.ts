@@ -9,9 +9,12 @@ export const RX_STATUS_TEXT: Record<RxStatus, string> = {
 };
 
 // One plain line saying where an order is. Dispensed means the pharmacy has handed the goods over or sent them.
-export function orderStatusText(o: Pick<ApiPharmacyOrder, 'status' | 'fulfilment' | 'deliveryStatus'>): string {
+export function orderStatusText(o: Pick<ApiPharmacyOrder, 'status' | 'fulfilment' | 'deliveryStatus'> & { readyAt?: string | undefined }): string {
   if (o.status === 'CANCELLED') return 'Cancelled';
-  if (o.status === 'AWAITING_DISPENSING') return o.fulfilment === 'DELIVERY' ? 'Being prepared' : 'Being prepared for pickup';
+  if (o.status === 'AWAITING_DISPENSING') {
+    if (o.fulfilment === 'DELIVERY') return o.readyAt ? 'Packed, waiting for a rider' : 'Being prepared';
+    return o.readyAt ? 'Ready for pickup' : 'Being prepared for pickup';
+  }
   if (o.fulfilment === 'PICKUP') return 'Collected';
   switch (o.deliveryStatus) {
     case 'PENDING': return 'Packed, waiting for a rider';

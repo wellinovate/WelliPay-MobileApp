@@ -40,6 +40,14 @@
     },
     "plugins": [
       [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow WelliPay to attach a photo of your prescription.",
+          "cameraPermission": "Allow WelliPay to take a photo of your prescription.",
+          "microphonePermission": false
+        }
+      ],
+      [
         "expo-camera",
         {
           "cameraPermission": "Allow WelliPay to access your camera to scan hospital bills and QR codes."

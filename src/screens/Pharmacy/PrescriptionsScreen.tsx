@@ -2,10 +2,12 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, TextInput, Alert } from 'react-native';
 import { ScreenHeader, Card, Banner, Button } from '../../components';
 import { colors, fontSize, spacing, radius } from '../../theme/tokens';
-import { fetchPrescriptions, submitPrescription, requestRefill, cancelPrescription, ApiPrescription } from '../../api/patientData';
+import { fetchPrescriptions, submitPrescription, requestRefill, cancelPrescription, uploadPrescriptionPhoto, ApiPrescription } from '../../api/patientData';
+import { pickPrescriptionPhoto, PickedPhoto } from '../../utils/prescriptionPhoto';
 import { RX_STATUS_TEXT } from './pharmacyText';
 
 const MAX_ITEMS = 4;
+const MAX_PHOTOS = 3;
 interface Draft { description: string; quantity: string; directions: string }
 const blank = (): Draft => ({ description: '', quantity: '', directions: '' });
 
@@ -39,6 +41,8 @@ export default function PrescriptionsScreen({ navigation }: any) {
   const [notes, setNotes] = useState('');
   const [drafts, setDrafts] = useState<Draft[]>([blank()]);
   const [saving, setSaving] = useState(false);
+  const [photos, setPhotos] = useState<PickedPhoto[]>([]);
+  const [photoBusy, setPhotoBusy] = useState(false);
 
   const load = useCallback(() => {
     fetchPrescriptions()
@@ -57,13 +61,34 @@ export default function PrescriptionsScreen({ navigation }: any) {
     setSaving(true);
     setError('');
     try {
-      await submitPrescription(built.body);
-      setAdding(false); setPrescriber(''); setNotes(''); setDrafts([blank()]);
+      const created = await submitPrescription(built.body);
+      let failed = 0;
+      for (const p of photos) {
+        try { await uploadPrescriptionPhoto(created.prescriptionId, p); } catch { failed += 1; }
+      }
+      setAdding(false); setPrescriber(''); setNotes(''); setDrafts([blank()]); setPhotos([]);
+      if (failed > 0) setError(`Your prescription was sent, but ${failed} photo${failed === 1 ? '' : 's'} did not upload. Use "Add photo" on the prescription below.`);
       load();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'The prescription could not be sent.');
     } finally {
       setSaving(false);
+    }
+  };
+
+  // Takes or chooses a photo. For a prescription already sent, uploads it straight away.
+  const addPhoto = async (source: 'camera' | 'library', existingId?: string) => {
+    setError('');
+    setPhotoBusy(true);
+    try {
+      const photo = await pickPrescriptionPhoto(source);
+      if (!photo) return;
+      if (existingId) { await uploadPrescriptionPhoto(existingId, photo); load(); }
+      else setPhotos(ps => [...ps, photo]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'The photo could not be added.');
+    } finally {
+      setPhotoBusy(false);
     }
   };
 
@@ -103,6 +128,17 @@ export default function PrescriptionsScreen({ navigation }: any) {
             {drafts.length < MAX_ITEMS && (
               <TouchableOpacity onPress={() => setDrafts(ds => [...ds, blank()])}><Text style={styles.link}>Add another medicine</Text></TouchableOpacity>
             )}
+            <Text style={styles.label}>Photo of the prescription (optional, up to {MAX_PHOTOS})</Text>
+            <Text style={styles.sub}>A clear photo helps the pharmacist check what you typed. {photos.length} added.</Text>
+            {photos.length < MAX_PHOTOS && (
+              <View style={styles.pair}>
+                <Button label="Take photo" variant="secondary" style={{ flex: 1 }} loading={photoBusy} onPress={() => addPhoto('camera')} />
+                <Button label="Choose photo" variant="secondary" style={{ flex: 1 }} disabled={photoBusy} onPress={() => addPhoto('library')} />
+              </View>
+            )}
+            {photos.length > 0 && (
+              <TouchableOpacity onPress={() => setPhotos(ps => ps.slice(0, -1))}><Text style={styles.link}>Remove last photo</Text></TouchableOpacity>
+            )}
             <Text style={styles.label}>Note for the pharmacist (optional)</Text>
             <TextInput style={styles.input} value={notes} onChangeText={setNotes} placeholder="e.g. Allergic to penicillin" placeholderTextColor={colors.textTertiary} maxLength={500} />
             <View style={styles.pair}>
@@ -131,6 +167,17 @@ export default function PrescriptionsScreen({ navigation }: any) {
             {rx.status === 'REJECTED' && !!rx.rejectionReason && <Text style={styles.reason}>Reason: {rx.rejectionReason}</Text>}
             {rx.status === 'VERIFIED' && !!rx.validUntil && <Text style={styles.sub}>Valid until {day(rx.validUntil)}. The pharmacy will send you a bill.</Text>}
             {rx.status === 'COMPLETED' && rx.refillsRemaining !== undefined && <Text style={styles.sub}>{rx.refillsRemaining} refill{rx.refillsRemaining === 1 ? '' : 's'} left</Text>}
+            {rx.status === 'SUBMITTED' && (
+              <View>
+                <Text style={styles.sub}>{(rx.images?.length ?? 0)} photo{(rx.images?.length ?? 0) === 1 ? '' : 's'} attached</Text>
+                {(rx.images?.length ?? 0) < MAX_PHOTOS && (
+                  <View style={styles.pair}>
+                    <TouchableOpacity disabled={photoBusy} onPress={() => addPhoto('camera', rx.prescriptionId)}><Text style={styles.link}>Take photo</Text></TouchableOpacity>
+                    <TouchableOpacity disabled={photoBusy} onPress={() => addPhoto('library', rx.prescriptionId)}><Text style={styles.link}>Choose photo</Text></TouchableOpacity>
+                  </View>
+                )}
+              </View>
+            )}
             {rx.canRefill && (
               <TouchableOpacity disabled={busy === rx.prescriptionId} onPress={() => act(rx.prescriptionId, requestRefill, 'The refill could not be requested.')}>
                 <Text style={styles.link}>{busy === rx.prescriptionId ? 'Requesting…' : 'Request a refill'}</Text>
