@@ -3,14 +3,15 @@ import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   Modal, TextInput, Alert, ActivityIndicator,
 } from 'react-native';
-import { ScreenHeader, Card, StatusPill, Button, Banner, Divider } from '../../components';
+import { ScreenHeader, Card, StatusPill, Button, Banner, Divider, Chip, Toggle } from '../../components';
 import { colors, fontSize, spacing, radius, shadow } from '../../theme/tokens';
 import { useStore } from '../../state/store';
 import { COPY } from '../../state/copy';
 import { NAIRA } from '../../utils/helpers';
 import { generateReceiptPdf, shareReceiptPdf } from '../../utils/pdfGenerator';
 import { hapticLight, hapticSuccess, hapticError } from '../../utils/haptics';
-import { fetchInvoice, startPatientCharge, ApiInvoice } from '../../api/patientData';
+import { fetchInvoice, startPatientCharge, fetchWallet, fetchSavedCards, payFromWallet, ApiInvoice, ApiSavedCard } from '../../api/patientData';
+import { cardTitle } from '../Wallet/SavedCardsScreen';
 import * as WebBrowser from 'expo-web-browser';
 
 // A real wellipay-api invoice only carries the fields serializeInvoice
@@ -26,6 +27,40 @@ function LiveBillDetail({ invoiceId, navigation, onBack }: { invoiceId: string; 
   const [part, setPart] = useState('');
   const [payErr, setPayErr] = useState('');
   const [paying, setPaying] = useState(false);
+  const [walletBalance, setWalletBalance] = useState(0);
+  const [cards, setCards] = useState<ApiSavedCard[]>([]);
+  const [cardId, setCardId] = useState<string | null>(null);
+  const [saveCard, setSaveCard] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
+
+  const wantedMinor = (outstanding: number): number | null => {
+    if (!part.trim()) return outstanding;
+    const n = Math.round(Number(part) * 100);
+    return n >= 100 && n <= outstanding ? n : null;
+  };
+
+  const payWallet = async () => {
+    if (!invoice) return;
+    const outstanding = invoice.amountMinor - invoice.paidAmountMinor;
+    const wanted = wantedMinor(outstanding);
+    if (wanted === null) {
+      setPayErr(`Enter an amount from ₦1 up to ${NAIRA(outstanding / 100)}.`);
+      return;
+    }
+    const amountMinor = Math.min(wanted, walletBalance);
+    setPaying(true);
+    setPayErr('');
+    try {
+      await payFromWallet({ invoiceId: invoice.invoiceId, amountMinor });
+      hapticSuccess();
+      setPart('');
+      setReloadKey(k => k + 1);
+    } catch (e) {
+      setPayErr(e instanceof Error ? e.message : 'The wallet payment failed.');
+    } finally {
+      setPaying(false);
+    }
+  };
 
   const payNow = async () => {
     if (!invoice) return;
@@ -45,8 +80,10 @@ function LiveBillDetail({ invoiceId, navigation, onBack }: { invoiceId: string; 
         invoiceId: invoice.invoiceId,
         ...(email.trim() ? { email: email.trim() } : {}),
         ...(amountMinor !== undefined ? { amountMinor } : {}),
+        ...(cardId ? { savedMethodId: cardId } : saveCard ? { saveCard: true } : {}),
       });
-      await WebBrowser.openBrowserAsync(charge.authorizationUrl);
+      // A saved card is charged by the server, so there is no checkout page.
+      if (charge.authorizationUrl) await WebBrowser.openBrowserAsync(charge.authorizationUrl);
       navigation.navigate('TransactionDetail', { reference: charge.reference });
     } catch (e) {
       setPayErr(e instanceof Error ? e.message : 'The payment could not be started.');
@@ -63,7 +100,12 @@ function LiveBillDetail({ invoiceId, navigation, onBack }: { invoiceId: string; 
       .catch(err => { if (active) setError(err instanceof Error ? err.message : 'Could not load this bill.'); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [invoiceId]);
+  }, [invoiceId, reloadKey]);
+
+  useEffect(() => {
+    fetchWallet().then(w => setWalletBalance(w.balanceMinor)).catch(() => setWalletBalance(0));
+    fetchSavedCards().then(setCards).catch(() => setCards([]));
+  }, [reloadKey]);
 
   return (
     <View style={styles.screen}>
@@ -128,9 +170,36 @@ function LiveBillDetail({ invoiceId, navigation, onBack }: { invoiceId: string; 
                   placeholder="Pay part of it? Amount in naira (optional)"
                   placeholderTextColor={colors.textTertiary}
                 />
+                {cards.length > 0 && (
+                  <View style={{ marginTop: spacing.sm }}>
+                    <Text style={styles.payNote}>Pay with</Text>
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.xs }}>
+                      <Chip label="New card" active={cardId === null} onPress={() => setCardId(null)} />
+                      {cards.filter(c => !c.expired).map(c => (
+                        <Chip key={c.methodId} label={cardTitle(c)} active={cardId === c.methodId} onPress={() => { setCardId(c.methodId); setSaveCard(false); }} />
+                      ))}
+                    </View>
+                  </View>
+                )}
+                {cardId === null && (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: spacing.md }}>
+                    <Text style={[styles.payNote, { flex: 1, marginTop: 0 }]}>Save this card for next time</Text>
+                    <Toggle value={saveCard} onPress={() => setSaveCard(v => !v)} />
+                  </View>
+                )}
                 {!!payErr && <Banner message={payErr} variant="err" style={{ marginTop: spacing.sm }} />}
                 <Button label={part.trim() ? 'Pay this amount' : `Pay ${NAIRA((invoice.amountMinor - invoice.paidAmountMinor) / 100)}`} onPress={payNow} loading={paying} fullWidth style={{ marginTop: spacing.sm }} />
-                <Text style={styles.payNote}>You pay on Paystack's secure page. Your payment shows under My payments once Paystack confirms it.</Text>
+                {walletBalance >= 100 && (
+                  <Button
+                    label={`Pay ${NAIRA(Math.min(wantedMinor(invoice.amountMinor - invoice.paidAmountMinor) ?? walletBalance, walletBalance) / 100)} from wallet`}
+                    variant="secondary"
+                    onPress={payWallet}
+                    loading={paying}
+                    fullWidth
+                    style={{ marginTop: spacing.sm }}
+                  />
+                )}
+                <Text style={styles.payNote}>{cardId ? 'Your saved card is charged now. ' : 'You pay on Paystack\'s secure page. '}Your payment shows under My payments once Paystack confirms it.{walletBalance >= 100 ? ` Wallet credit: ${NAIRA(walletBalance / 100)}.` : ''}</Text>
               </Card>
             )}
 

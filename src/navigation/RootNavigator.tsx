@@ -41,6 +41,9 @@ import StatusScreen from '../screens/Payment/StatusScreen';
 import ReceiptScreen from '../screens/Payment/ReceiptScreen';
 import TransactionsScreen from '../screens/Payment/TransactionsScreen';
 import TransactionDetailScreen from '../screens/Payment/TransactionDetailScreen';
+import RemindersScreen from '../screens/Payment/RemindersScreen';
+import SavedCardsScreen from '../screens/Wallet/SavedCardsScreen';
+import WalletTopUpScreen from '../screens/Wallet/WalletTopUpScreen';
 import GuestPayScreen from '../screens/Payment/GuestPayScreen';
 import ReportScreen from '../screens/Payment/ReportScreen';
 import ReportDetailScreen from '../screens/Payment/ReportDetailScreen';
@@ -249,6 +252,9 @@ export default function RootNavigator() {
       <Stack.Screen name="History" component={TransactionsScreen} />
       <Stack.Screen name="Transactions" component={TransactionsScreen} />
       <Stack.Screen name="TransactionDetail" component={TransactionDetailScreen} />
+      <Stack.Screen name="Reminders" component={RemindersScreen} />
+      <Stack.Screen name="SavedCards" component={SavedCardsScreen} />
+      <Stack.Screen name="WalletTopUp" component={WalletTopUpScreen} />
       <Stack.Screen name="GuestPay" component={GuestPayScreen} />
       <Stack.Screen name="Report" component={ReportScreen} />
       <Stack.Screen name="ReportDetail" component={ReportDetailScreen} />

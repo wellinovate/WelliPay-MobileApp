@@ -1,19 +1,30 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Card, Button, Toggle, Divider, ProgressBar } from '../../components';
+import { Card, Button, Toggle, Divider, ProgressBar, Banner } from '../../components';
 import { colors, fontSize, spacing } from '../../theme/tokens';
 import { useStore } from '../../state/store';
 import { COPY } from '../../state/copy';
 import { NAIRA, fmtDate } from '../../utils/helpers';
+import { fetchWallet, ApiWallet } from '../../api/patientData';
 
 export default function WalletScreen({ navigation }: any) {
   const store = useStore();
-  const { lang, activePerson, wallets, walletTxns, walletAutoPay, savingsGoal } = store;
+  const { lang, activePerson, walletAutoPay, savingsGoal } = store;
   const t = COPY[lang];
-  const balance = wallets[activePerson]||0;
   const autoPay = walletAutoPay[activePerson]||false;
-  const myTxns = walletTxns.filter(tx=>tx.personId===activePerson);
+  const [wallet, setWallet] = useState<ApiWallet | null>(null);
+  const [walletError, setWalletError] = useState('');
+  const [walletLoading, setWalletLoading] = useState(true);
+  useFocusEffect(useCallback(() => {
+    let active = true;
+    fetchWallet()
+      .then(w => { if (active) { setWallet(w); setWalletError(''); } })
+      .catch(err => { if (active) setWalletError(err instanceof Error ? err.message : 'Could not load your wallet.'); })
+      .finally(() => { if (active) setWalletLoading(false); });
+    return () => { active = false; };
+  }, []));
   const sg = savingsGoal;
   const insets = useSafeAreaInsets();
 
@@ -21,11 +32,16 @@ export default function WalletScreen({ navigation }: any) {
     <View style={[styles.screen,{paddingTop:insets.top}]}>
       <View style={styles.header}><Text style={styles.title}>{t.walletTitle}</Text></View>
       <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
-        {/* Balance card */}
+        {/* Balance card: real credit with the provider */}
         <Card style={styles.balanceCard}>
-          <Text style={styles.kicker}>{t.walletKicker}</Text>
-          <Text style={styles.balance}>{NAIRA(balance)}</Text>
-          <Button label={t.topUpBtn} fullWidth style={{marginTop:spacing.lg}} onPress={()=>navigation.navigate('TopUp')}/>
+          <Text style={styles.kicker}>Wallet credit{wallet?.providerName ? ` · ${wallet.providerName}` : ''}</Text>
+          {walletLoading && <ActivityIndicator color={colors.accent} style={{ alignSelf: 'flex-start', marginVertical: spacing.md }} />}
+          {!walletLoading && wallet && <Text style={styles.balance}>{NAIRA(wallet.balanceMinor / 100)}</Text>}
+          {!!walletError && <Banner message={walletError} variant="err" style={{ marginTop: spacing.sm }} />}
+          <Text style={styles.toggleSub}>Credit you add can pay this provider's bills.</Text>
+          <Button label="Add money" fullWidth style={{marginTop:spacing.lg}} onPress={()=>navigation.navigate('WalletTopUp')}/>
+          <Button label="Saved cards" variant="secondary" fullWidth style={{marginTop:spacing.sm}} onPress={()=>navigation.navigate('SavedCards')}/>
+          <Button label="Payment reminders" variant="secondary" fullWidth style={{marginTop:spacing.sm}} onPress={()=>navigation.navigate('Reminders')}/>
         </Card>
 
         {/* Auto-pay */}
@@ -33,7 +49,7 @@ export default function WalletScreen({ navigation }: any) {
           <View style={styles.toggleRow}>
             <View style={{flex:1}}>
               <Text style={styles.toggleLabel}>{t.autoPayLabel}</Text>
-              <Text style={styles.toggleSub}>{t.autoPaySub}</Text>
+              <Text style={styles.toggleSub}>{t.autoPaySub} Preview only. Not connected yet.</Text>
             </View>
             <Toggle value={autoPay} onPress={()=>store.toggleAutoPay(activePerson)}/>
           </View>
@@ -49,7 +65,7 @@ export default function WalletScreen({ navigation }: any) {
           </View>
           <Text style={[styles.goalName, { fontSize: fontSize.base, marginTop: 4 }]}>Target Medical & Maternity Pots</Text>
           <Text style={{ fontSize: fontSize.xs, color: colors.textSecondary, marginTop: 2, lineHeight: 16 }}>
-            Save small-small for hospital admissions and surgery with automated spare-change roundups.
+            Save small-small for hospital admissions and surgery with automated spare-change roundups. Preview only. Not connected yet.
           </Text>
           <Button
             label="Manage HealthSave Pots"
@@ -62,7 +78,7 @@ export default function WalletScreen({ navigation }: any) {
 
         {/* Savings goal */}
         <Card style={styles.mb}>
-          <Text style={styles.kicker}>{t.savingsKicker}</Text>
+          <Text style={styles.kicker}>{t.savingsKicker} · Preview only</Text>
           <Text style={styles.goalName}>{sg.name}</Text>
           <View style={styles.goalAmts}>
             <Text style={styles.saved}>{NAIRA(sg.saved)}</Text>
@@ -75,15 +91,15 @@ export default function WalletScreen({ navigation }: any) {
 
         {/* Activity */}
         <Text style={styles.sectionLabel}>{t.walletActivity}</Text>
-        {myTxns.length===0 && <Text style={styles.empty}>{t.noWalletActivity}</Text>}
-        {myTxns.map(tx=>(
-          <View key={tx.id} style={styles.txnRow}>
+        {!walletLoading && wallet && wallet.entries.length===0 && <Text style={styles.empty}>{t.noWalletActivity}</Text>}
+        {wallet?.entries.map(e=>(
+          <View key={e.entryId} style={styles.txnRow}>
             <View style={{flex:1}}>
-              <Text style={styles.txnLabel}>{tx.label}</Text>
-              <Text style={styles.txnDate}>{tx.date}</Text>
+              <Text style={styles.txnLabel}>{e.kind==='TOPUP' ? 'Money added' : 'Paid a bill'}</Text>
+              <Text style={styles.txnDate}>{fmtDate(new Date(e.createdAt))}</Text>
             </View>
-            <Text style={[styles.txnAmt,{color:tx.sign>0?colors.accentDark:colors.textPrimary}]}>
-              {tx.sign>0?'+':'-'}{NAIRA(tx.amount)}
+            <Text style={[styles.txnAmt,{color:e.amountMinor>0?colors.accentDark:colors.textPrimary}]}>
+              {e.amountMinor>0?'+':'-'}{NAIRA(Math.abs(e.amountMinor)/100)}
             </Text>
           </View>
         ))}
