@@ -452,6 +452,7 @@ export interface ApiPrescription {
   refillOfId?: string;
   createdAt: string;
   items: { itemId: string; description: string; quantity: number; directions?: string }[];
+  images?: { imageId: string; contentType: string; sizeBytes: number }[];
   canRefill: boolean;
   refillsRemaining?: number;
   refillBlockedReason?: string;
@@ -470,8 +471,13 @@ export async function fetchPrescriptions(): Promise<ApiPrescription[]> {
   return res.items;
 }
 
-export async function submitPrescription(body: NewPrescriptionInput): Promise<void> {
-  await patientApiRequest('/patient/prescriptions', { method: 'POST', body });
+export async function submitPrescription(body: NewPrescriptionInput): Promise<ApiPrescription> {
+  return patientApiRequest<ApiPrescription>('/patient/prescriptions', { method: 'POST', body });
+}
+
+// A photo of the paper prescription. The pharmacist compares it with the typed items.
+export async function uploadPrescriptionPhoto(prescriptionId: string, photo: { contentType: 'image/jpeg'; dataBase64: string }): Promise<void> {
+  await patientApiRequest(`/patient/prescriptions/${encodeURIComponent(prescriptionId)}/images`, { method: 'POST', body: photo });
 }
 
 export async function requestRefill(prescriptionId: string): Promise<void> {
@@ -494,6 +500,8 @@ export interface ApiPharmacyOrder {
   deliveredAt?: string;
   failureReason?: string;
   dispensedAt?: string;
+  readyAt?: string;
+  trackingUrl?: string;
   createdAt: string;
   proofCode?: string;
   lines: { description: string; quantity: number }[];

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Linking } from 'react-native';
 import { ScreenHeader, Card, Banner } from '../../components';
 import { colors, fontSize, spacing } from '../../theme/tokens';
 import { fetchPharmacyOrders, ApiPharmacyOrder } from '../../api/patientData';
@@ -40,6 +40,11 @@ export default function PharmacyOrdersScreen() {
             </View>
             {o.lines.map((l, i) => <Text key={i} style={styles.item}>{l.description} × {l.quantity}</Text>)}
             {!!o.courierName && o.deliveryStatus === 'OUT_FOR_DELIVERY' && <Text style={styles.sub}>Rider: {o.courierName}</Text>}
+            {!!o.trackingUrl && /^https:\/\//i.test(o.trackingUrl) && (
+              <TouchableOpacity onPress={() => Linking.openURL(o.trackingUrl as string)}>
+                <Text style={styles.link}>Track this delivery</Text>
+              </TouchableOpacity>
+            )}
             {o.deliveryStatus === 'DELIVERED' && !!o.deliveredAt && <Text style={styles.sub}>Delivered {when(o.deliveredAt)}</Text>}
             {o.deliveryStatus === 'FAILED' && !!o.failureReason && <Text style={styles.sub}>{o.failureReason}</Text>}
             {showsProofCode(o) && (
@@ -65,6 +70,7 @@ const styles = StyleSheet.create({
   status: { fontSize: fontSize.sm, fontWeight: '600', color: colors.accentDark, marginLeft: spacing.md },
   item: { fontSize: fontSize.sm, color: colors.textPrimary, marginTop: 4 },
   sub: { fontSize: fontSize.sm, color: colors.textSecondary, marginTop: 6 },
+  link: { fontSize: fontSize.sm, fontWeight: '600', color: colors.accentDark, marginTop: spacing.sm },
   codeBox: { marginTop: spacing.md, padding: spacing.md, backgroundColor: colors.surfaceAlt, borderRadius: 8 },
   code: { fontSize: fontSize.display, fontWeight: '700', letterSpacing: 6, color: colors.textPrimary, textAlign: 'center', marginTop: spacing.sm },
 });
