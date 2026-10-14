@@ -300,12 +300,19 @@ export interface ApiTransaction {
 
 export interface StartedCharge {
   reference: string;
-  authorizationUrl: string;
+  // Null when a saved card was charged. There is no checkout page to open.
+  authorizationUrl: string | null;
   amountMinor: number;
   status: string;
 }
 
-export async function startPatientCharge(input: { invoiceId: string; email?: string; amountMinor?: number }): Promise<StartedCharge> {
+export async function startPatientCharge(input: {
+  invoiceId: string;
+  email?: string;
+  amountMinor?: number;
+  saveCard?: boolean;
+  savedMethodId?: string;
+}): Promise<StartedCharge> {
   return patientApiRequest<StartedCharge>('/patient/paystack/charges', { method: 'POST', body: input });
 }
 
@@ -320,4 +327,112 @@ export async function fetchTransaction(reference: string): Promise<ApiTransactio
 
 export async function claimGuestPayment(claimCode: string): Promise<ApiTransaction> {
   return patientApiRequest<ApiTransaction>('/patient/transactions/claim', { method: 'POST', body: { claimCode } });
+}
+
+// Payment reminders. Mirrors wellipay-api src/routes/patientReminders.ts.
+export interface ApiReminderItem {
+  invoiceId: string;
+  invoiceRef: string;
+  providerName: string;
+  description: string;
+  outstandingMinor: number;
+  dueAt?: string;
+  dueState: 'OVERDUE' | 'DUE_SOON' | 'OPEN';
+  nextInstallment?: { dueAt: string; amountMinor: number };
+  reminder?: { remindAt: string; note?: string; sent: boolean };
+}
+
+export async function fetchReminders(): Promise<ApiReminderItem[]> {
+  const res = await patientApiRequest<ListResponse<ApiReminderItem>>('/patient/reminders');
+  return res.items;
+}
+
+export async function setReminder(invoiceId: string, remindAt: Date, note?: string): Promise<void> {
+  await patientApiRequest(`/patient/reminders/${encodeURIComponent(invoiceId)}`, {
+    method: 'PUT',
+    body: { remindAt: remindAt.toISOString(), ...(note ? { note } : {}) },
+  });
+}
+
+export async function clearReminder(invoiceId: string): Promise<void> {
+  await patientApiRequest(`/patient/reminders/${encodeURIComponent(invoiceId)}`, { method: 'DELETE' });
+}
+
+// Saved cards. Mirrors src/routes/patientCards.ts. The API never sends the card token.
+export interface ApiSavedCard {
+  methodId: string;
+  brand: string;
+  last4: string;
+  expMonth?: string;
+  expYear?: string;
+  bank?: string;
+  expired: boolean;
+  createdAt: string;
+}
+
+export async function fetchSavedCards(): Promise<ApiSavedCard[]> {
+  const res = await patientApiRequest<ListResponse<ApiSavedCard>>('/patient/payment-methods');
+  return res.items;
+}
+
+export async function deleteSavedCard(methodId: string): Promise<void> {
+  await patientApiRequest(`/patient/payment-methods/${encodeURIComponent(methodId)}`, { method: 'DELETE' });
+}
+
+// Wallet: prepaid credit with the provider. Mirrors src/routes/patientWallet.ts.
+export interface ApiWalletEntry {
+  entryId: string;
+  kind: 'TOPUP' | 'INVOICE_PAYMENT';
+  amountMinor: number;
+  reference: string;
+  invoiceId?: string;
+  createdAt: string;
+}
+
+export interface ApiWallet {
+  balanceMinor: number;
+  currency: string;
+  minTopUpMinor: number;
+  maxTopUpMinor: number;
+  providerName: string;
+  entries: ApiWalletEntry[];
+}
+
+export async function fetchWallet(): Promise<ApiWallet> {
+  return patientApiRequest<ApiWallet>('/patient/wallet');
+}
+
+export interface StartedTopUp {
+  reference: string;
+  authorizationUrl: string;
+  amountMinor: number;
+  status: string;
+}
+
+export async function startWalletTopUp(input: { amountMinor: number; email?: string }): Promise<StartedTopUp> {
+  return patientApiRequest<StartedTopUp>('/patient/wallet/topups', { method: 'POST', body: input });
+}
+
+export interface ApiTopUp {
+  reference: string;
+  amountMinor: number;
+  status: 'PENDING' | 'SUCCESS' | 'FAILED';
+  failureReason?: string;
+  createdAt: string;
+}
+
+export async function fetchTopUp(reference: string): Promise<ApiTopUp> {
+  return patientApiRequest<ApiTopUp>(`/patient/wallet/topups/${encodeURIComponent(reference)}`);
+}
+
+export interface WalletPayment {
+  paymentId: string;
+  reference: string;
+  amountMinor: number;
+  invoiceStatus: 'PAID' | 'PARTIALLY_PAID';
+  balanceMinor: number;
+}
+
+export async function payFromWallet(input: { invoiceId: string; amountMinor?: number }): Promise<WalletPayment> {
+  return patientApiRequest<WalletPayment>('/patient/wallet/pay', { method: 'POST', body: input });
 }
