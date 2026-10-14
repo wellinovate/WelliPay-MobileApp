@@ -269,3 +269,55 @@ export interface ApiPatientResults {
 export async function fetchPatientResults(): Promise<ApiPatientResults> {
   return patientApiRequest<ApiPatientResults>('/patient/results');
 }
+
+// Payments. Mirrors wellipay-api src/routes/patientPay.ts.
+export interface ApiTransactionLine {
+  description: string;
+  quantity: number;
+  unitPriceMinor: number;
+}
+
+export interface ApiTransaction {
+  transactionId: string;
+  reference: string;
+  processor: string;
+  invoiceId: string;
+  providerName: string;
+  invoiceRef: string;
+  description: string;
+  amountMinor: number;
+  currency: string;
+  status: 'PENDING' | 'SUCCESS' | 'FAILED';
+  source: 'PROVIDER' | 'PATIENT' | 'GUEST';
+  paidByMe: boolean;
+  paidAt?: string;
+  createdAt: string;
+  failureReason?: string;
+  refundStatus: 'NONE' | 'PENDING' | 'REFUNDED';
+  refundedMinor: number;
+  lines?: ApiTransactionLine[];
+}
+
+export interface StartedCharge {
+  reference: string;
+  authorizationUrl: string;
+  amountMinor: number;
+  status: string;
+}
+
+export async function startPatientCharge(input: { invoiceId: string; email?: string; amountMinor?: number }): Promise<StartedCharge> {
+  return patientApiRequest<StartedCharge>('/patient/paystack/charges', { method: 'POST', body: input });
+}
+
+export async function fetchTransactions(): Promise<ApiTransaction[]> {
+  const res = await patientApiRequest<ListResponse<ApiTransaction>>('/patient/transactions');
+  return res.items;
+}
+
+export async function fetchTransaction(reference: string): Promise<ApiTransaction> {
+  return patientApiRequest<ApiTransaction>(`/patient/transactions/${encodeURIComponent(reference)}`);
+}
+
+export async function claimGuestPayment(claimCode: string): Promise<ApiTransaction> {
+  return patientApiRequest<ApiTransaction>('/patient/transactions/claim', { method: 'POST', body: { claimCode } });
+}

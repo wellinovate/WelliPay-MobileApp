@@ -107,6 +107,15 @@ export default function HomeScreen({ navigation }: any) {
           </View>
 
           <TouchableOpacity
+            style={{backgroundColor:colors.surfaceAlt,padding:spacing.md,borderRadius:radius.sm,marginTop:spacing.sm}}
+            activeOpacity={0.7}
+            onPress={() => navigation.navigate('Transactions')}
+          >
+            <Text style={{fontSize:fontSize.sm,fontWeight:'700',color:colors.textPrimary}}>🧾 My payments</Text>
+            <Text style={{fontSize:fontSize.xs,color:colors.textSecondary,marginTop:2}}>Pending, paid, failed and refunded · receipts</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
             style={{backgroundColor:'#F0FDF4',padding:spacing.md,borderRadius:radius.sm,borderColor:'#BBF7D0',borderWidth:1,marginTop:spacing.sm}}
             activeOpacity={0.7}
             onPress={() => navigation.navigate('Results')}
