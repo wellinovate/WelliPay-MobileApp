@@ -10,7 +10,8 @@ import { COPY } from '../../state/copy';
 import { NAIRA } from '../../utils/helpers';
 import { generateReceiptPdf, shareReceiptPdf } from '../../utils/pdfGenerator';
 import { hapticLight, hapticSuccess, hapticError } from '../../utils/haptics';
-import { fetchInvoice, ApiInvoice } from '../../api/patientData';
+import { fetchInvoice, startPatientCharge, ApiInvoice } from '../../api/patientData';
+import * as WebBrowser from 'expo-web-browser';
 
 // A real wellipay-api invoice only carries the fields serializeInvoice
 // returns (src/routes/patientData.ts) — no line items, HMO split,
@@ -21,6 +22,38 @@ function LiveBillDetail({ invoiceId, navigation, onBack }: { invoiceId: string; 
   const [invoice, setInvoice] = useState<ApiInvoice | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+  const [email, setEmail] = useState('');
+  const [part, setPart] = useState('');
+  const [payErr, setPayErr] = useState('');
+  const [paying, setPaying] = useState(false);
+
+  const payNow = async () => {
+    if (!invoice) return;
+    const outstanding = invoice.amountMinor - invoice.paidAmountMinor;
+    let amountMinor: number | undefined;
+    if (part.trim()) {
+      amountMinor = Math.round(Number(part) * 100);
+      if (!(amountMinor >= 100) || amountMinor > outstanding) {
+        setPayErr(`Enter an amount from ₦1 up to ${NAIRA(outstanding / 100)}.`);
+        return;
+      }
+    }
+    setPaying(true);
+    setPayErr('');
+    try {
+      const charge = await startPatientCharge({
+        invoiceId: invoice.invoiceId,
+        ...(email.trim() ? { email: email.trim() } : {}),
+        ...(amountMinor !== undefined ? { amountMinor } : {}),
+      });
+      await WebBrowser.openBrowserAsync(charge.authorizationUrl);
+      navigation.navigate('TransactionDetail', { reference: charge.reference });
+    } catch (e) {
+      setPayErr(e instanceof Error ? e.message : 'The payment could not be started.');
+    } finally {
+      setPaying(false);
+    }
+  };
 
   useEffect(() => {
     let active = true;
@@ -73,6 +106,33 @@ function LiveBillDetail({ invoiceId, navigation, onBack }: { invoiceId: string; 
                 )}
               </View>
             </Card>
+
+            {invoice.status !== 'PAID' && invoice.status !== 'CANCELLED' && invoice.amountMinor > invoice.paidAmountMinor && (
+              <Card style={styles.breakdownCard}>
+                <Text style={styles.kicker}>PAY THIS BILL</Text>
+                <TextInput
+                  style={styles.payInput}
+                  value={email}
+                  onChangeText={v => { setEmail(v); setPayErr(''); }}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  placeholder="Email for your receipt (optional if on file)"
+                  placeholderTextColor={colors.textTertiary}
+                />
+                <TextInput
+                  style={styles.payInput}
+                  value={part}
+                  onChangeText={v => { setPart(v); setPayErr(''); }}
+                  keyboardType="decimal-pad"
+                  placeholder="Pay part of it? Amount in naira (optional)"
+                  placeholderTextColor={colors.textTertiary}
+                />
+                {!!payErr && <Banner message={payErr} variant="err" style={{ marginTop: spacing.sm }} />}
+                <Button label={part.trim() ? 'Pay this amount' : `Pay ${NAIRA((invoice.amountMinor - invoice.paidAmountMinor) / 100)}`} onPress={payNow} loading={paying} fullWidth style={{ marginTop: spacing.sm }} />
+                <Text style={styles.payNote}>You pay on Paystack's secure page. Your payment shows under My payments once Paystack confirms it.</Text>
+              </Card>
+            )}
 
             <TouchableOpacity
               style={styles.linkCard}
@@ -747,6 +807,8 @@ Step 5: Patient Self-Pay set to ${NAIRA(Math.round(totalCost * (activePolicy.coP
 }
 
 const styles = StyleSheet.create({
+  payInput: { borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm, padding: spacing.md, fontSize: fontSize.md, color: colors.textPrimary, backgroundColor: colors.surface, marginTop: spacing.sm },
+  payNote: { fontSize: fontSize.xs, color: colors.textTertiary, marginTop: spacing.sm, lineHeight: 16 },
   screen: { flex: 1, backgroundColor: colors.bg },
   body: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxxl },
   taglineBadge: {

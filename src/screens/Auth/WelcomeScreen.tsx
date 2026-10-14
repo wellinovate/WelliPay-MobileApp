@@ -125,6 +125,14 @@ export default function WelcomeScreen({ navigation }: any) {
           style={styles.cta}
         />
 
+        <Button
+          label="Pay a bill without an account"
+          onPress={() => navigation.navigate('GuestPay')}
+          variant="secondary"
+          fullWidth
+          style={styles.cta}
+        />
+
         <Text style={styles.terms}>{t.terms}</Text>
       </ScrollView>
     </View>
