@@ -436,3 +436,70 @@ export interface WalletPayment {
 export async function payFromWallet(input: { invoiceId: string; amountMinor?: number }): Promise<WalletPayment> {
   return patientApiRequest<WalletPayment>('/patient/wallet/pay', { method: 'POST', body: input });
 }
+
+// Pharmacy prescriptions, refills and order tracking. Mirrors wellipay-api src/routes/patientPharmacy.ts.
+export type RxStatus = 'SUBMITTED' | 'VERIFIED' | 'REJECTED' | 'CANCELLED' | 'COMPLETED';
+
+export interface ApiPrescription {
+  prescriptionId: string;
+  status: RxStatus;
+  prescriberName?: string;
+  issuedOn?: string;
+  notes?: string;
+  rejectionReason?: string;
+  validUntil?: string;
+  refillsAllowed: number;
+  refillOfId?: string;
+  createdAt: string;
+  items: { itemId: string; description: string; quantity: number; directions?: string }[];
+  canRefill: boolean;
+  refillsRemaining?: number;
+  refillBlockedReason?: string;
+}
+
+export interface NewPrescriptionInput {
+  prescriberName: string;
+  prescriberLicenceNo?: string;
+  issuedOn?: string;
+  notes?: string;
+  items: { description: string; quantity: number; directions?: string }[];
+}
+
+export async function fetchPrescriptions(): Promise<ApiPrescription[]> {
+  const res = await patientApiRequest<ListResponse<ApiPrescription>>('/patient/prescriptions');
+  return res.items;
+}
+
+export async function submitPrescription(body: NewPrescriptionInput): Promise<void> {
+  await patientApiRequest('/patient/prescriptions', { method: 'POST', body });
+}
+
+export async function requestRefill(prescriptionId: string): Promise<void> {
+  await patientApiRequest(`/patient/prescriptions/${encodeURIComponent(prescriptionId)}/refill`, { method: 'POST', body: {} });
+}
+
+export async function cancelPrescription(prescriptionId: string): Promise<void> {
+  await patientApiRequest(`/patient/prescriptions/${encodeURIComponent(prescriptionId)}/cancel`, { method: 'POST', body: {} });
+}
+
+export interface ApiPharmacyOrder {
+  orderId: string;
+  invoiceId: string;
+  status: 'AWAITING_DISPENSING' | 'DISPENSED' | 'CANCELLED';
+  fulfilment: 'PICKUP' | 'DELIVERY';
+  deliveryStatus: 'NOT_APPLICABLE' | 'PENDING' | 'OUT_FOR_DELIVERY' | 'DELIVERED' | 'FAILED';
+  deliveryFeeMinor: number;
+  courierName?: string;
+  dispatchedAt?: string;
+  deliveredAt?: string;
+  failureReason?: string;
+  dispensedAt?: string;
+  createdAt: string;
+  proofCode?: string;
+  lines: { description: string; quantity: number }[];
+}
+
+export async function fetchPharmacyOrders(): Promise<ApiPharmacyOrder[]> {
+  const res = await patientApiRequest<ListResponse<ApiPharmacyOrder>>('/patient/pharmacy-orders');
+  return res.items;
+}
