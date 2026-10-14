@@ -50,6 +50,7 @@ export type RootStackParamList = {
 
   // Dual-Payer & Healthcare Episodes
   EpisodeTimeline: { episodeId?: string } | undefined;
+  Results: undefined;
   HmoReconcile: { billId?: string } | undefined;
 
   // Advanced Healthcare Ecosystem

@@ -248,3 +248,24 @@ export async function fetchEpisodes(): Promise<ApiEpisode[]> {
   const res = await patientApiRequest<{ items: ApiEpisode[] }>('/patient/episodes');
   return res.items;
 }
+
+// GET /patient/results — ready results for tests the lab delivers digitally.
+export interface ApiPatientResult {
+  resultId: string;
+  bookingId: string;
+  kind: 'LAB' | 'IMAGING';
+  testName: string;
+  resultText?: string;
+  abnormal: boolean;
+  takenOn: string;
+  readyAt?: string;
+}
+
+export interface ApiPatientResults {
+  items: ApiPatientResult[];
+  inPersonCount: number;
+}
+
+export async function fetchPatientResults(): Promise<ApiPatientResults> {
+  return patientApiRequest<ApiPatientResults>('/patient/results');
+}
