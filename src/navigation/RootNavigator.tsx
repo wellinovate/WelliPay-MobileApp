@@ -60,6 +60,7 @@ import PreAuthScreen from '../screens/HMO/PreAuthScreen';
 import WelliRecordSyncScreen from '../screens/WelliRecord/WelliRecordSyncScreen';
 import FacilityDirectoryScreen from '../screens/Facilities/FacilityDirectoryScreen';
 import EpisodeTimelineScreen from '../screens/Bills/EpisodeTimelineScreen';
+import ResultsScreen from '../screens/Results/ResultsScreen';
 import HmoReconcileScreen from '../screens/HMO/HmoReconcileScreen';
 import { FamilyPayHubScreen } from '../screens/FamilyPay/FamilyPayHubScreen';
 import { WelliPassScreen } from '../screens/Discharge/WelliPassScreen';
@@ -257,6 +258,7 @@ export default function RootNavigator() {
 
       {/* Healthcare & Insurance */}
       <Stack.Screen name="EpisodeTimeline" component={EpisodeTimelineScreen} />
+      <Stack.Screen name="Results" component={ResultsScreen} />
       <Stack.Screen name="HmoReconcile" component={HmoReconcileScreen} />
       <Stack.Screen name="Hmo" component={HmoScreen} />
       <Stack.Screen name="AddHmo" component={AddHmoScreen} />

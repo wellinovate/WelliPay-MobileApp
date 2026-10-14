@@ -106,6 +106,15 @@ export default function HomeScreen({ navigation }: any) {
             </TouchableOpacity>
           </View>
 
+          <TouchableOpacity
+            style={{backgroundColor:'#F0FDF4',padding:spacing.md,borderRadius:radius.sm,borderColor:'#BBF7D0',borderWidth:1,marginTop:spacing.sm}}
+            activeOpacity={0.7}
+            onPress={() => navigation.navigate('Results')}
+          >
+            <Text style={{fontSize:fontSize.sm,fontWeight:'700',color:'#166534'}}>🔬 My results</Text>
+            <Text style={{fontSize:fontSize.xs,color:'#15803D',marginTop:2}}>Lab results and scan reports</Text>
+          </TouchableOpacity>
+
           <View style={{flexDirection:'row',gap:spacing.sm,marginTop:spacing.sm}}>
             <TouchableOpacity
               style={{flex:1,backgroundColor:'#F8FAFC',padding:spacing.md,borderRadius:radius.sm,borderColor:'#E2E8F0',borderWidth:1}}
