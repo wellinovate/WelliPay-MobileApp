@@ -65,6 +65,7 @@ import HmoScreen from '../screens/HMO/HmoScreen';
 import AddHmoScreen from '../screens/HMO/AddHmoScreen';
 import PreAuthScreen from '../screens/HMO/PreAuthScreen';
 import WelliRecordSyncScreen from '../screens/WelliRecord/WelliRecordSyncScreen';
+import RecordConnectionsScreen from '../screens/RecordLinks/RecordConnectionsScreen';
 import FacilityDirectoryScreen from '../screens/Facilities/FacilityDirectoryScreen';
 import EpisodeTimelineScreen from '../screens/Bills/EpisodeTimelineScreen';
 import ResultsScreen from '../screens/Results/ResultsScreen';
@@ -279,6 +280,7 @@ export default function RootNavigator() {
       <Stack.Screen name="AddHmo" component={AddHmoScreen} />
       <Stack.Screen name="PreAuth" component={PreAuthScreen} />
       <Stack.Screen name="WelliRecordSync" component={WelliRecordSyncScreen} />
+      <Stack.Screen name="RecordConnections" component={RecordConnectionsScreen} />
       <Stack.Screen name="FacilityDirectory" component={FacilityDirectoryScreen} />
 
       {/* Advanced Healthcare Ecosystem */}

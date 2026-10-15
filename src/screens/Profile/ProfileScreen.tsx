@@ -18,6 +18,7 @@ export default function ProfileScreen({ navigation }: any) {
     { key: 'People', label: t.settingsMenu[0] || 'People', target: 'People' },
     { key: 'Hmo', label: 'Health Insurance & HMO', target: 'Hmo' },
     { key: 'WelliRecordSync', label: 'WelliRecord EMR Sync', target: 'WelliRecordSync' },
+    { key: 'RecordConnections', label: 'Connect health records', target: 'RecordConnections' },
     { key: 'FacilityDirectory', label: 'Partner Hospitals & Directory', target: 'FacilityDirectory' },
     { key: 'Security', label: t.settingsMenu[1] || 'Security', target: 'Security' },
     { key: 'Privacy', label: t.settingsMenu[2] || 'Privacy', target: 'Privacy' },

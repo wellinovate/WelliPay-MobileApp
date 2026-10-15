@@ -74,6 +74,7 @@ export type RootStackParamList = {
   AddHmo: undefined;
   PreAuth: undefined;
   WelliRecordSync: undefined;
+  RecordConnections: undefined;
   FacilityDirectory: undefined;
 
   // Profile & Settings
