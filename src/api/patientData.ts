@@ -511,3 +511,54 @@ export async function fetchPharmacyOrders(): Promise<ApiPharmacyOrder[]> {
   const res = await patientApiRequest<ListResponse<ApiPharmacyOrder>>('/patient/pharmacy-orders');
   return res.items;
 }
+
+// Health-record connections (wellipay-api src/routes/recordConnections.ts).
+// A connection is a reference plus a verification. It never gives anyone
+// access to records, and the API says so in every response.
+export type RecordConnectionKind = 'WELLIRECORD' | 'EXTERNAL_SYSTEM' | 'PROVIDER_PATIENT_NUMBER';
+
+export interface ApiRecordIntegration {
+  key: string;
+  name: string;
+  kind: RecordConnectionKind;
+}
+
+export interface ApiRecordConnection {
+  id: string;
+  kind: RecordConnectionKind;
+  integrationKey?: string;
+  integrationName?: string;
+  reference: string;
+  status: 'PENDING_VERIFICATION' | 'VERIFIED' | 'REJECTED' | 'REVOKED' | 'EXPIRED';
+  nextStep: 'ENTER_CODE' | 'AWAIT_PROVIDER_REVIEW' | 'NONE';
+  codeExpiresAt?: string;
+  decisionNote?: string;
+  verifiedAt?: string;
+  createdAt: string;
+  grantsRecordAccess: false;
+  notice: string;
+}
+
+export async function fetchRecordIntegrations(): Promise<{ items: ApiRecordIntegration[]; notice: string }> {
+  return patientApiRequest('/patient/record-integrations');
+}
+
+export async function fetchRecordConnections(): Promise<{ items: ApiRecordConnection[]; notice: string }> {
+  return patientApiRequest('/patient/record-connections');
+}
+
+export async function createRecordConnection(input: {
+  kind: RecordConnectionKind;
+  integrationKey?: string;
+  reference: string;
+}): Promise<ApiRecordConnection> {
+  return patientApiRequest('/patient/record-connections', { method: 'POST', body: input });
+}
+
+export async function confirmRecordConnection(id: string, code: string): Promise<ApiRecordConnection> {
+  return patientApiRequest(`/patient/record-connections/${encodeURIComponent(id)}/confirm`, { method: 'POST', body: { code } });
+}
+
+export async function revokeRecordConnection(id: string): Promise<ApiRecordConnection> {
+  return patientApiRequest(`/patient/record-connections/${encodeURIComponent(id)}/revoke`, { method: 'POST', body: {} });
+}
