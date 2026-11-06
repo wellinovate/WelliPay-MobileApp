@@ -4,8 +4,8 @@
 // the Patient MobileApp. Override via EXPO_PUBLIC_WELLIPAY_API_URL for a
 // local dev server.
 export const WELLIPAY_API_URL =
-  process.env.EXPO_PUBLIC_WELLIPAY_API_URL || 'https://wellipay-api.onrender.com';
+  process.env.EXPO_PUBLIC_WELLIPAY_API_URL || 'https://api.wellipay.net';
 
 // Public guest payment page (WelliPayPro's pay.html). A payment link opens here.
 export const PAY_PAGE_URL =
-  process.env.EXPO_PUBLIC_PAY_PAGE_URL || 'https://wellipaypro.onrender.com/pay.html';
+  process.env.EXPO_PUBLIC_PAY_PAGE_URL || 'https://app.wellipay.net/pay.html';
