@@ -86,11 +86,19 @@ export default function PreAuthScreen({ navigation }: any) {
         notes: created.notes,
       });
 
-      Alert.alert(
-        'Pre-Authorization Approved!',
-        `${activePolicy.provider} has approved ${NAIRA(created.coveredAmount.amountMinor / 100)} for ${procedure} at ${selectedFacility}. Your co-pay: ${NAIRA(created.patientPortion.amountMinor / 100)}.`,
-        [{ text: 'View Pre-Auths', onPress: () => navigation.goBack() }]
-      );
+      if (created.status === 'APPROVED') {
+        Alert.alert(
+          'Pre-Authorization Approved!',
+          `${activePolicy.provider} has approved ${NAIRA(created.coveredAmount.amountMinor / 100)} for ${procedure} at ${selectedFacility}. Your co-pay: ${NAIRA(created.patientPortion.amountMinor / 100)}.`,
+          [{ text: 'View Pre-Auths', onPress: () => navigation.goBack() }]
+        );
+      } else {
+        Alert.alert(
+          'Request sent for review',
+          `Your request for ${procedure} at ${selectedFacility} has been recorded. ${activePolicy.provider} has not confirmed it yet, so no amount is approved. Check this list for the decision.`,
+          [{ text: 'View Pre-Auths', onPress: () => navigation.goBack() }]
+        );
+      }
     } catch (err) {
       if (err instanceof NotLinkedError) {
         setError('Link your WelliRecord account first.');
@@ -166,25 +174,28 @@ export default function PreAuthScreen({ navigation }: any) {
         </View>
 
         <Card style={styles.summaryCard}>
-          <Text style={styles.summaryKicker}>Estimated Coverage Breakdown</Text>
+          <Text style={styles.summaryKicker}>Estimate only</Text>
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Total Hospital Cost:</Text>
             <Text style={styles.summaryVal}>{NAIRA(numCost)}</Text>
           </View>
           <View style={styles.summaryRow}>
-            <Text style={[styles.summaryLabel, { color: colors.accent }]}>HMO Covers ({100 - coPayPct}%):</Text>
+            <Text style={[styles.summaryLabel, { color: colors.accent }]}>Estimated HMO share ({100 - coPayPct}%):</Text>
             <Text style={[styles.summaryVal, { color: colors.accent }]}>{NAIRA(coveredAmount)}</Text>
           </View>
           <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Your Co-Pay ({coPayPct}%):</Text>
+            <Text style={styles.summaryLabel}>Estimated co-pay ({coPayPct}%):</Text>
             <Text style={styles.summaryVal}>{NAIRA(patientPortion)}</Text>
           </View>
+          <Text style={{ fontSize: fontSize.xs, color: colors.textTertiary, marginTop: spacing.sm }}>
+            Based on your card's co-pay. Your HMO confirms the real amounts.
+          </Text>
         </Card>
       </ScrollView>
 
       <View style={styles.footer}>
         <Button
-          label="Request Instant Approval"
+          label="Request pre-authorization"
           fullWidth
           loading={submitting}
           disabled={policiesLoading || !activePolicy}

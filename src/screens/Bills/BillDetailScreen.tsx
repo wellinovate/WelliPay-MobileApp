@@ -804,7 +804,7 @@ Step 5: Patient Self-Pay set to ${NAIRA(Math.round(totalCost * (activePolicy.coP
                 style={styles.fundingOptCard}
                 onPress={() => {
                   setShowFundingModal(false);
-                  Alert.alert('Funding Programme', 'WelliPay verified your eligibility for Lagos State Health Equity Assistance (Ilera Eko NGO fund). Support pending facility clearance.');
+                  Alert.alert('Funding support', 'Grants and NGO support are arranged with your hospital\'s billing desk. WelliPay has not checked your eligibility for any programme.');
                 }}
               >
                 <Text style={styles.fundingOptIcon}>🤝</Text>
