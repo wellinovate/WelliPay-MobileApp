@@ -211,10 +211,14 @@ export default function HmoScreen({ navigation }: any) {
 
               <Divider style={styles.paDivider} />
 
-              <View style={styles.paCostRow}>
-                <Text style={styles.paCostLabel}>Covered: {NAIRA(pa.coveredAmount.amountMinor / 100)}</Text>
-                <Text style={styles.paCostPatient}>You pay: {NAIRA(pa.patientPortion.amountMinor / 100)}</Text>
-              </View>
+              {pa.status === 'IN_REVIEW' ? (
+                <Text style={styles.paCostLabel}>Waiting for your HMO. No amount is approved yet.</Text>
+              ) : (
+                <View style={styles.paCostRow}>
+                  <Text style={styles.paCostLabel}>Covered: {NAIRA(pa.coveredAmount.amountMinor / 100)}</Text>
+                  <Text style={styles.paCostPatient}>You pay: {NAIRA(pa.patientPortion.amountMinor / 100)}</Text>
+                </View>
+              )}
               {pa.notes ? <Text style={styles.paNotes}>{pa.notes}</Text> : null}
             </Card>
           ))
